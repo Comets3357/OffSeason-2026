@@ -1,7 +1,3 @@
-//The 2026 Java-only vendordep cannot build this wrapper.
-//Installing the ThriftyLib C++ dependency automatically enables this file.
-#if __has_include(<thrifty/nova/Nova.h>)
-
 #include "wrappers/NovaBase.h"
 
 #include <algorithm>
@@ -59,15 +55,16 @@ void NovaMotor::SetPosition(units::angle::degree_t degree)
 void NovaMotor::SetVelocity(units::angular_velocity::revolutions_per_minute_t rpm, int slot)
 {
     if (slot < 0 || slot > 1) return;
+    SelectFeedback(thrifty::Motor::FeedbackSensorType::INTERNAL);
     //Nova expects motor rotations per second.
     double motorRps = rpm.value() / (60.0 * config.velocityConversionFactor);
-    motor.Control(thrifty::NovaControl::Velocity(motorRps),
-                  thrifty::NovaControl::WithPIDSlot(static_cast<thrifty::NovaControl::PIDSlot>(slot)));
+    motor.Control(thrifty::NovaControl::Velocity(motorRps).WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
 }
 
 void NovaMotor::SetPosition(units::angle::degree_t degree, int slot)
 {
     if (slot < 0 || slot > 1) return;
+    SelectFeedback(thrifty::Motor::FeedbackSensorType::INTERNAL);
     double target = degree.value();
     if (wrappingEnabled)
     {
@@ -75,8 +72,7 @@ void NovaMotor::SetPosition(units::angle::degree_t degree, int slot)
         target = current + std::remainder(target - current, 360.0);
     }
     double motorRotations = target / (360.0 * config.positionConversionFactor);
-    motor.Control(thrifty::NovaControl::Position(motorRotations),
-                  thrifty::NovaControl::WithPIDSlot(static_cast<thrifty::NovaControl::PIDSlot>(slot)));
+    motor.Control(thrifty::NovaControl::Position(motorRotations).WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
 }
 
 void NovaMotor::SetPID(double p, double i, double d, double ff, int slot)
@@ -96,13 +92,13 @@ void NovaMotor::SetPID(double p, double i, double d, double ff, int slot)
 void NovaMotor::SetAbsolutePosition(units::angle::degree_t degree, int slot)
 {
     if (slot < 0 || slot > 1) return;
-    motor.Control(thrifty::NovaControl::VoltageAbsPosition(degree.value() / 360.0),
-                  thrifty::NovaControl::WithPIDSlot(static_cast<thrifty::NovaControl::PIDSlot>(slot)));
+    SelectFeedback(thrifty::Motor::FeedbackSensorType::ABS);
+    motor.Control(thrifty::NovaControl::VoltagePosition(degree.value() / 360.0).WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
 }
 
 units::angle::degree_t NovaMotor::getAbsolutePosition()
 {
-    return units::angle::degree_t{motor.Status().GetPositionAbs() * 360.0};
+    return units::angle::degree_t{motor.Status().GetAbsPosition() * 360.0};
 }
 
 void NovaMotor::SetAbsoluteWrapping(bool enable)
@@ -113,7 +109,7 @@ void NovaMotor::SetAbsoluteWrapping(bool enable)
 void NovaMotor::SetInverted(bool inversion)
 {
     config.inverted = inversion;
-    motor.Configure(thrifty::NovaConfig::Inverted(inversion));
+    motor.SetInverted(inversion);
 }
 
 void NovaMotor::SetNeutralMode(NeutralMode neutralMode)
@@ -195,8 +191,11 @@ void NovaMotor::ApplyConfiguration(MotorConfig motorConfig)
 
 void NovaMotor::Configure()
 {
+    motor.SetInverted(config.inverted);
     motor.Configure(
-        thrifty::NovaConfig::Inverted(config.inverted),
+        thrifty::NovaConfig::SensorToMechanismRatio(1.0),
+        thrifty::NovaConfig::FeedbackSensor(feedbackSensor),
+        thrifty::NovaConfig::SoftLimitSource(thrifty::Motor::FeedbackSensorType::INTERNAL),
         thrifty::NovaConfig::BrakeMode(config.neutralMode == NeutralMode::Brake),
         thrifty::NovaConfig::StatorCurrent(config.enableCurrentLimit ? config.currentLimitAmps : 40),
         thrifty::NovaConfig::VoltageComp(config.enableVoltageCompensation ? config.voltageCompensation : 0),
@@ -209,14 +208,14 @@ void NovaMotor::Configure()
 
 units::angle::degree_t NovaMotor::getPosition()
 {
-    return units::angle::degree_t{motor.Status().GetPositionInternal() *
+    return units::angle::degree_t{motor.Status().GetIntPosition() *
                                  360.0 * config.positionConversionFactor};
 }
 
 units::angular_velocity::revolutions_per_minute_t NovaMotor::getVelocity()
 {
     return units::angular_velocity::revolutions_per_minute_t{
-        motor.Status().GetVelocityInternal() * 60.0 * config.velocityConversionFactor};
+        motor.Status().GetIntVelocity() * 60.0 * config.velocityConversionFactor};
 }
 
 bool NovaMotor::isForwardSoftLimitEnabled()
@@ -241,4 +240,9 @@ units::angle::degree_t NovaMotor::getReverseLimit()
                                  360.0 * config.positionConversionFactor};
 }
 
-#endif
+void NovaMotor::SelectFeedback(thrifty::Motor::FeedbackSensorType sensor)
+{
+    if (feedbackSensor == sensor) return;
+    motor.Configure(thrifty::NovaConfig::FeedbackSensor(sensor));
+    feedbackSensor = sensor;
+}

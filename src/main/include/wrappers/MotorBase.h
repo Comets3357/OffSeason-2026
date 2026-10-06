@@ -63,7 +63,7 @@ public:
     virtual void SetMaxOutput( double percent) = 0;
 
     //sets the motor to go a specific velocity.
-    virtual void SetVelocity(units::angular_velocity::revolutions_per_minute rpm);
+    virtual void SetVelocity(units::angular_velocity::revolutions_per_minute_t rpm) = 0;
 
     //sets the motor to a specific position.
     virtual void SetPosition(units::angle::degree_t degree) = 0;
@@ -129,24 +129,21 @@ public:
     virtual units::angle::degree_t getReverseLimit() = 0;
 
     //virtual function to set the PIDs
-    virtual void SetPID(double p, double i, double d, double ff);
+    virtual void SetPID(double p, double i, double d, double ff) { SetPID(p, i, d, ff, 0); }
 
     //virtual function to recieve if the forward limit is enabled;
-    virtual bool IsForwardLimitEnabled();
+    virtual bool IsForwardLimitEnabled() { return isForwardSoftLimitEnabled(); }
 
     //virtual function to recieve if the reverse limit is enabled;
-    virtual bool IsReverseLimitEnabled();
+    virtual bool IsReverseLimitEnabled() { return isReverseSoftLimitEnabled(); }
 
-    virtual void SetConversionFactor(double conversion);
 
     //virtual function to pull the current position of the motor
-    //(prioritizes absolute)
-    virtual units::angle::degree_t GetPosition();
+    virtual units::angle::degree_t GetPosition() { return getPosition(); }
 
     //getter to return the velocity of the current motor controller
-    //(Prioritizes absolute)
     //TODO give it a better type!!
-    virtual double GetVelocity();
+    virtual double GetVelocity() { return getVelocity().value(); }
 
 
 

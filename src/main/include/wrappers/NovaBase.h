@@ -118,6 +118,10 @@ private:
     MotorConfig config;
     double maxOutput = 1.0;
     bool wrappingEnabled = false;
+    thrifty::Motor::FeedbackSensorType feedbackSensor = thrifty::Motor::FeedbackSensorType::INTERNAL;
+
+    //change the feedback source only when switching control modes.
+    void SelectFeedback(thrifty::Motor::FeedbackSensorType sensor);
 
     //apply the stored settings to the motor controller.
     void Configure();
