@@ -9,7 +9,7 @@ constexpr double INTAKE_ENCODER_RATIO = 1.0 / 105.0;
 IntakeSubsystem::IntakeSubsystem() {
 
     //PID values of intake 
-    const double intakeP = 2;
+    const double intakeP = 2; //volts per encoder rotation of error, not per degree
     const double intakeI = 0;
     const double intakeD = 0;
 
@@ -38,7 +38,9 @@ IntakeSubsystem::IntakeSubsystem() {
 void IntakeSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Intake angle", GetAngle());
     frc::SmartDashboard::PutNumber("Intake target angle", GetTargetAngle());
-    frc::SmartDashboard::PutNumber("Intake Amperage", fuelDeploy.GetAppliedVoltage());
+    frc::SmartDashboard::PutNumber("Intake Amperage", fuelDeploy.GetOutputCurrent());
+    frc::SmartDashboard::PutNumber("Intake Applied Voltage", fuelDeploy.GetAppliedVoltage());
+    frc::SmartDashboard::PutNumber("Intake Angle Error", GetTargetAngle() - GetAngle());
     frc::SmartDashboard::PutNumber("Intake roller speed", fuelIntake.getVelocity().value());
 }
 

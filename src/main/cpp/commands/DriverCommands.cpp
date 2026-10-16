@@ -16,6 +16,10 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
     frc2::Trigger driverStart = m_driverController->Start();
     frc2::Trigger driverRightTrigger = m_driverController->RightTrigger();
     frc2::Trigger driverRightBumper = m_driverController->RightBumper();
+    frc2::Trigger driverX = m_driverController->X();
+    frc2::Trigger driverY = m_driverController->Y();
+    frc2::Trigger driverPOVUp = m_driverController->POVUp();
+    frc2::Trigger driverPOVDown = m_driverController->POVDown();
 
     frc2::Trigger driverBack = m_driverController->Back();
 
@@ -47,6 +51,26 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
 
     driverRightBumper.OnTrue(runIntakeRoller(m_intake, ROLLER_SPEED));
     driverRightBumper.OnFalse(runIntakeRoller(m_intake, 0));
+
+    //Manually move the deploy motor while the POV is held; stop on release.
+    (driverPOVUp || driverPOVDown).WhileTrue(frc2::cmd::RunEnd(
+        [=] {
+            m_intake->SetSpeed(driverPOVUp.Get() ? 0.1 : -0.1);
+        },
+        [=] {
+            m_intake->SetSpeed(0);
+        }, {m_intake}));
+
+    //One command lets X and Y run independently without interrupting each other.
+    (driverX || driverY).WhileTrue(frc2::cmd::RunEnd(
+        [=] {
+            m_index->setHopperSpeed(driverX.Get() ? 0.5 : 0.0);
+            m_index->setKickerSpeed(driverY.Get() ? 0.5 : 0.0);
+        },
+        [=] {
+            m_index->setHopperSpeed(0);
+            m_index->setKickerSpeed(0);
+        }, {m_index}));
 
 
     driverBack.OnTrue(zeroPose(m_drive));
