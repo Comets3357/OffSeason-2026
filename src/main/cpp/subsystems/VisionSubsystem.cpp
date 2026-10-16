@@ -16,7 +16,7 @@ void VisionSubsystem::setGyroData(frc::Rotation2d gyroRotation)
 {
     //checker to investiage if the gyro is a component of our explosion odometry
     //issue, but still good to check in comp code in general
-    if (std::isnan(gyroRotation.Degrees().value()) == true) {
+    if (!std::isfinite(gyroRotation.Degrees().value())) {
         return;
     }
     for (auto& estimator : poseEstimator) {
@@ -36,9 +36,9 @@ std::vector<photon::EstimatedRobotPose> VisionSubsystem::getEstimatedGlobalPose(
     //All the unread results get compiled into our unreadResults vector that contains all the unread results formatted per each individual camera
     std::vector<std::optional<photon::PhotonPipelineResult>> unreadResults;
 
-    double totalTagDistance = 0.0;
-    int totalTagCount = 0;
-    double averageTagDistance = 0;
+    totalTagDistance = 0.0;
+    totalTagCount = 0;
+    averageTagDistance = 0.0;
 
     for (size_t i = 0; i < cameras.size(); i++) {
         std::vector<photon::PhotonPipelineResult> unreadResultsVector = cameras.at(i).GetAllUnreadResults();
@@ -97,7 +97,8 @@ std::vector<photon::EstimatedRobotPose> VisionSubsystem::getEstimatedGlobalPose(
             }
 
             //If the best target is more than 4 meters away and single tag, skip
-            if (culledUnreadResult.GetBestTarget().GetBestCameraToTarget().Translation().Norm().value() > 3.0) {
+            if (culledUnreadResult.GetTargets().size() == 1 &&
+                culledUnreadResult.GetBestTarget().GetBestCameraToTarget().Translation().Norm().value() > 3.0) {
                 continue;
             }
 
@@ -110,7 +111,7 @@ std::vector<photon::EstimatedRobotPose> VisionSubsystem::getEstimatedGlobalPose(
             units::second_t frameTime{culledResult.GetTimestamp().value()};
                     
             //if the frame time is within the given alloted time frame that exists, let this happen.
-            if (frameTime > lastProcessedTime && frameTime <= currentTime) {
+            if (frameTime > lastProcessedTimes.at(i) && frameTime <= currentTime) {
                 frc::SmartDashboard::PutBoolean("has value", true);
 
                 //instantiates our wrapper for our estimatedRobotPoses, evaluates if the data they are going to contain exists.
@@ -171,7 +172,7 @@ std::vector<photon::EstimatedRobotPose> VisionSubsystem::getEstimatedGlobalPose(
                     }
                 }
 
-                lastProcessedTime = frameTime;  // Update last processed time
+                lastProcessedTimes.at(i) = frameTime;  // Update last processed time
 
             } 
                     

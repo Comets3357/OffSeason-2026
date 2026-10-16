@@ -32,7 +32,7 @@ SwerveModule::SwerveModule(int steerId, int driveId, double offset, bool steerEn
 {
     //configure the Nova steering motor and use its absolute encoder for position.
     MotorBase::MotorConfig steerConfig;
-    steerConfig.currentLimitAmps = static_cast<int>(steerCurrentLimit.value());
+    steerConfig.currentLimitAmps = steerCurrentLimit.value();
     steerConfig.neutralMode = MotorBase::NeutralMode::Coast;
     m_steerMotor.ApplyConfiguration(steerConfig);
     m_steerMotor.SetPID(steerP, steerI, steerD, 0.0, 0);
@@ -40,7 +40,7 @@ SwerveModule::SwerveModule(int steerId, int driveId, double offset, bool steerEn
 
     //the REV wrapper takes a MotorConfig and reports degrees and RPM.
     MotorBase::MotorConfig driveConfig;
-    driveConfig.currentLimitAmps = static_cast<int>(driveCurrentLimit.value());
+    driveConfig.currentLimitAmps = driveCurrentLimit.value();
     driveConfig.inverted = true;
     driveConfig.enableVoltageCompensation = true;
     driveConfig.voltageCompensation = 12.0;

@@ -88,7 +88,7 @@ class VisionSubsystem : public frc2::SubsystemBase {
 
     private: 
 
-        units::second_t lastProcessedTime = 0_s;
+        std::vector<units::second_t> lastProcessedTimes{4, 0_s};
 
         bool hasPrevVisionPose = false;
 };

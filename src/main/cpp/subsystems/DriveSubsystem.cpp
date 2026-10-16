@@ -282,19 +282,8 @@ void DriveSubsystem::PoseEstimation() {
     //instantiates our main workhorse for standard deviation
     double stdDev;                                                                                                              
 
-    // gets the frc::chassisSpeeds of the bot and does a conversion factor to convert into angular rotation
-    //angularSpeedMulti is in radians per second
-    if (std::isfinite(GetRobotRelativeSpeeds().omega())) {
-        double angularSpeedMulti = GetRobotRelativeSpeeds().omega / 0.0610865_rad_per_s;
-    } else {
-        double angilarSpeedMulti = 0;
-    }
-
-    // //The higher the angularSpeed of the chassis, the less confident we feel in the pose of our Bot.
-    //stdDev = std::ceil(angularSpeedMulti) * 5;
-
-    //gets the distance between our alliance's respective hub.
-    double distancePose = GetDistanceFromTarget(IsBlueAlliance() ? blueHub : redHub); 
+    std::vector<photon::EstimatedRobotPose> estimatedPoseVector;
+    estimatedPoseVector = m_vision.getEstimatedGlobalPose(m_vision.prevEstimatedRobotPose);
 
     //gets distance from every tag measurement
     double avgTagDistance = m_vision.averageTagDistance;
@@ -318,14 +307,11 @@ void DriveSubsystem::PoseEstimation() {
     
     //end std dev calculation
 
-    std::vector<photon::EstimatedRobotPose> estimatedPoseVector;
-    estimatedPoseVector = m_vision.getEstimatedGlobalPose(m_vision.prevEstimatedRobotPose);
-
     // Updates vision measurements with available poses from each camera
     if (!estimatedPoseVector.empty()) {
 
         //for all vision measurements within the estimated pose array, give them to the poseEstimator
-        for (int i = 0; i < estimatedPoseVector.size(); i++) {
+        for (size_t i = 0; i < estimatedPoseVector.size(); i++) {
             
             //adds the vision estimate to the poseEstimator.
             m_poseEstimator.AddVisionMeasurement(estimatedPoseVector.at(i).estimatedPose.ToPose2d(), 
@@ -558,18 +544,10 @@ void DriveSubsystem::GoToPosition(frc::Pose2d targetPos, double max_output,
     frc::PIDController rotationPID(1,0,0);
 
     //calculates the velocities of the bot in order to get to said position
-    double speedX = positionPID.Calculate(deltaX, 0);
-    double speedY = positionPID.Calculate(deltaY, 0);
-    double angVel = rotationPID.Calculate(shortestRotation, 0); 
+    double speedX = positionPID.Calculate(0, deltaX);
+    double speedY = positionPID.Calculate(0, deltaY);
+    double angVel = rotationPID.Calculate(0, shortestRotation);
 
-    //reverses the speed if the bot to compensate for different perspective
-    auto alliance = frc::DriverStation::GetAlliance();
-    if (alliance && *alliance == frc::DriverStation::Alliance::kBlue)
-    {
-        speedX *= -1;
-        speedY *= -1;
-    }
-    
     //calculates the commanded speed that the robot would be going thru this path
     double commandedSpeed = std::sqrt(speedX * speedX + speedY * speedY);
 
@@ -581,12 +559,15 @@ void DriveSubsystem::GoToPosition(frc::Pose2d targetPos, double max_output,
     }
 
     //if the current location of the robot is within a tolerable margin, stop this function.
-    if (deltaX < translationTolerance.value() && deltaY < translationTolerance.value() && deltaAngle < degreeTolerance.value()) {
+    if (std::abs(deltaX) < translationTolerance.value() &&
+        std::abs(deltaY) < translationTolerance.value() &&
+        std::abs(shortestRotation) < degreeTolerance.value()) {
+        Drive(0_mps, 0_mps, 0_rad_per_s, true);
         return;
     }
 
     //once we have everything, drive using these calculated values.
-    Drive(units::meters_per_second_t{(speedX)}, units::meters_per_second_t{(speedY)}, -units::degrees_per_second_t{angVel}, true);
+    Drive(units::meters_per_second_t{(speedX)}, units::meters_per_second_t{(speedY)}, units::degrees_per_second_t{angVel}, true);
 }
 
 

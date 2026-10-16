@@ -1,35 +1,45 @@
-// Copyright (c) FIRST and other WPILib contributors.
-// Open Source Software; you can modify and/or share it under the terms of
-// the WPILib BSD license file in the root directory of this project.
-
 #include "RobotContainer.h"
+#include <frc2/command/Commands.h>
+#include <frc/smartdashboard/SmartDashboard.h>
+#include <frc/MathUtil.h>
+#include <commands/DriverCommands.h>
+#include <pathplanner/lib/auto/NamedCommands.h>
+#include <pathplanner/lib/auto/AutoBuilder.h>
+#include <frc/smartdashboard/SendableChooser.h>
+#include <frc2/command/CommandPtr.h>
+#include <pathplanner/lib/commands/PathPlannerAuto.h>
 
-#include <frc2/command/button/Trigger.h>
-
-#include "commands/Autos.h"
-#include "commands/ExampleCommand.h"
 
 RobotContainer::RobotContainer() {
-  // Initialize all of your commands and subsystems here
 
-  // Configure the button bindings
+  // autoChooser.SetDefaultOption("Potato", "potato");
+  // autoChooser.AddOption("Left Trench SINGLE Pass Under Trench", "LeftTrenchSinglePassUnderTrench");
+  // autoChooser.AddOption("Left Trench DOUBLE Pass Under Trench", "LeftTrenchDoublePassUnderTrench");
+  // autoChooser.AddOption("Left Trench SINGLE Pass AND DEPOT", "LeftTrenchSinglePassDepotCollect");
+  // autoChooser.AddOption("Right Trench SINGLE Pass Under Trench", "RightTrenchSinglePassUnderTrench");
+  // autoChooser.AddOption("Right Trench DOUBLE Pass Under Trench", "RightTrenchDoublePassUnderTrench");
+  // autoChooser.AddOption("Middle to Depot", "MidThenDepot");
+
+  frc::SmartDashboard::PutData("Auto Selector", &autoChooser);
+
   ConfigureBindings();
-}
 
+  // autoChooser = pathplanner::AutoBuilder::buildAutoChooser();
+  // frc::SmartDashboard::PutData("Sendable Chooser", &autoChooser);
+  
+} 
 void RobotContainer::ConfigureBindings() {
-  // Configure your trigger bindings here
-
-  // Schedule `ExampleCommand` when `exampleCondition` changes to `true`
-  frc2::Trigger([this] {
-    return m_subsystem.ExampleCondition();
-  }).OnTrue(ExampleCommand(&m_subsystem).ToPtr());
-
-  // Schedule `ExampleMethodCommand` when the Xbox controller's B button is
-  // pressed, cancelling on release.
-  m_driverController.B().WhileTrue(m_subsystem.ExampleMethodCommand());
+  DriverCommands(&m_drive, &m_index, &m_intake, &m_driverController, &m_operatorController);
+  // OperatorCommands(&m_drive, &m_intake, &m_climb, &m_shooter, &m_index, &m_operatorController);
+  // AutonCommands(&m_drive, &m_climb, &m_intake, &m_index, &m_shooter);
 }
 
 frc2::CommandPtr RobotContainer::GetAutonomousCommand() {
-  // An example command will be run in autonomous
-  return autos::ExampleAuto(&m_subsystem);
+
+  if (autoChooser.GetSelected().empty()) return frc2::cmd::None();
+  return pathplanner::PathPlannerAuto(autoChooser.GetSelected()).ToPtr();
+}
+
+std::string RobotContainer::GetAutonomousName() {
+  return autoChooser.GetSelected();
 }

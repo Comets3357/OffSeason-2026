@@ -14,6 +14,7 @@ NovaMotor shooter{13, thrifty::Motor::MINION, 0};
 intake.SetNeutralMode(MotorBase::NeutralMode::Brake);
 intake.SetCurrentLimit(40);
 intake.SetConversionFactor(0.1); // 10 motor rotations per output rotation
+intake.ApplyConfiguration(); // Reapply the internally stored settings.
 
 // Run from your subsystem or command.
 intake.Set(0.25);
@@ -22,25 +23,9 @@ intake.Stop();
 
 ## Dependency and build
 
-Written against **ThriftyLib 2027.0.0-alpha-3** and compile-checked against the
-actual vendor headers with **WPILib 2027.0.0-alpha-5** headers.
-
-The current project still uses WPILib 2026 and its Java-only ThriftyLib vendordep.
-`NovaBase.cpp` is excluded by an include guard while the C++ Nova header is
-unavailable. It becomes active automatically when the C++ dependency is installed.
-Including `NovaBase.h` in robot code requires that dependency; there is no dummy
-motor implementation.
-
-For a SystemCore project with the matching WPILib release, install the official
-[C++ vendor dependency](https://software.thethriftybot.com/frcvendor/ThriftyLib-2027.json)
-using WPILib's vendor library manager, replacing the old ThriftyLib dependency.
-The beta manifest currently supports SystemCore and desktop, but not roboRIO.
-For this roboRIO project, install the compatible C++ release when it becomes
-available, then rebuild before using `NovaMotor`. Verify the API against that
-release; future compatibility has not been tested.
-
-`MotorBase.h` accepts either the 2026 unit headers or the new SystemCore unit
-headers. This does not migrate the rest of the robot project to WPILib 2027.
+This project uses **ThriftyLib 2026.3.0** (including its C++ dependency) and
+**WPILib 2026.2.1**. `NovaBase.cpp` builds as part of the normal robot program.
+Run `./gradlew build --offline` when the dependencies are already cached.
 
 ## Differences from REVBase
 
@@ -62,16 +47,17 @@ headers. This does not migrate the rest of the robot project to WPILib 2027.
   restores the documented 40 A default; it does not remove current protection.
   Supply-current protection is left at its existing controller setting.
 - Configuration setters send their changes immediately; use them during setup.
+  `ApplyConfiguration()` reapplies the stored configuration without an argument;
+  `ApplyConfiguration(config)` replaces it with a supplied `MotorConfig`.
   Configuration and CAN errors are not exposed by the existing `MotorBase` API.
 - `SimulationPeriodic` is an empty hook. No mechanism physics model is included.
 
 ## Validation
 
-The Nova implementation passes a C++20 syntax check using the genuine ThriftyLib
-and WPILib SystemCore headers, with warnings treated as errors. The normal 2026
-robot build skips Nova until the compatible C++ dependency is installed. Nova
-linking, CAN communication, and physical motor behavior still require validation
-on the target controller.
+The wrapper is checked through the normal debug and release robot builds.
+CAN communication, encoder direction, limits, and PID gains still require
+validation on the target controller. Existing shooter gain values were retained
+during migration; their response is not equivalent to REV gains.
 
 References: [ThriftyLib setup](https://docs.thethriftybot.com/software/thriftylib/latest/overview),
 [control types and units](https://docs.thethriftybot.com/software/thriftylib/latest/control-types),
@@ -81,14 +67,71 @@ References: [ThriftyLib setup](https://docs.thethriftybot.com/software/thriftyli
 
 `SwerveModule` now uses `SparkFlexMotor` for drive and `NovaMotor` for steering.
 The Nova motor profile is MINION, matching the former steering motor selection.
-`SetAbsolutePosition` uses voltage-based PID and accepts absolute sensor degrees;
-`getAbsolutePosition` returns sensor degrees, and `SetAbsoluteWrapping` enables
+`SetAbsolutePosition` uses voltage-based PID and accepts output degrees;
+`getAbsolutePosition` returns output degrees, and `SetAbsoluteWrapping` enables
 onboard shortest-path control. These absolute methods do not apply the internal
-motor encoder conversion factors. Select and calibrate the actual connected
+motor encoder conversion factors. `SetAbsolutePosition` automatically selects
+absolute feedback; `SetPosition` and `SetVelocity` select internal feedback.
+The private `SelectFeedback` helper only sends a feedback change when the source
+differs, so subsystems do not need to call it.
+Select and calibrate the actual connected
 absolute encoder in Thrifty Config before running steering; software inversion
 in the module only changes coordinates, not the controller's feedback polarity.
 Steering gains must be checked and tuned on the Nova hardware.
 
-The swerve subsystem now includes `NovaBase.h`, so building the complete robot
-requires the compatible ThriftyLib C++ release. The missing-header guard in
-`NovaBase.cpp` does not bypass that requirement.
+## Intake, Index, and Shooter
+
+All active motors in these three subsystems use Nova controllers with the NEO
+profile. Their constructors use setters followed by `ApplyConfiguration()`.
+The previously disabled secondary shooter flywheel remains disabled.
+
+`SetAbsoluteConversionFactor` takes output rotations per absolute encoder
+rotation, independently of `SetConversionFactor` for the internal encoder.
+Its default is 1.0, preserving the swerve's sensor-degree behavior.
+Intake uses 18/28, shooter pitch uses (1/20)*(15/9), and shooter yaw retains
+473.85526 output degrees per encoder rotation (divided by 360 for this API).
+
+`SetSoftLimitSource(ABS)` makes limits use the absolute encoder and its conversion
+factor. Set both limits before enabling them. Soft-limit source is independent
+of the PID feedback source. `SetAbsoluteEncoderInverted(true)` selects Nova's
+counter-clockwise absolute direction; verify that direction on the hardware.
+
+`SetVoltageCompensation` updates the stored voltage setting. `SetFollow` enables
+native CAN following; the index follower follows CAN ID 22 with inversion.
+`GetOutputCurrent` reports stator amps and `GetAppliedVoltage` reports volts.
+
+## External CAN absolute encoder
+
+`SetExternalEncoder(encoderId)` pairs a **Thrifty CAN Encoder** on the Nova's bus.
+It accepts IDs 0-62. Pass `thrifty::Motor::kNoCanEncoder` to unpair and return to
+the wired absolute encoder. The pairing is retained by `ApplyConfiguration()`.
+
+```cpp
+//Example only: replace 5 with the encoder's actual CAN ID.
+fuelDeploy.SetExternalEncoder(5);
+fuelDeploy.SetAbsoluteConversionFactor(18.0 / 28.0);
+fuelDeploy.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::ABS);
+fuelDeploy.ApplyConfiguration();
+
+fuelDeploy.SetAbsolutePosition(90_deg);
+double angle = fuelDeploy.getAbsolutePosition().value();
+```
+
+Absolute position commands select `CAN_ABS` when paired. Absolute position and
+velocity getters read the CAN encoder directly, with the existing conversion
+factor. `SetPosition` and `SetVelocity` continue to use the internal encoder.
+Soft limits configured with `ABS` automatically use `CAN_ABS` while paired.
+`SetAbsoluteEncoderInverted` configures the selected encoder's direction, even
+if called before pairing; this changes the CAN encoder itself and therefore
+also affects other devices using that encoder. Configure its zero offset in
+Thrifty Config. Motor-following mode and external encoder control are kept
+mutually exclusive by the wrapper.
+
+This does not pair arbitrary third-party CAN encoders or assign IDs to PWM
+encoders. Thrifty's documentation specifies Nova firmware **2027.0.0-beta.4 or
+newer** with `CAN_ENCODER` support. Unsupported firmware can reject the settings
+and leave the motor on internal feedback; a successful build does not confirm
+hardware support. No subsystem encoder IDs are assigned automatically.
+
+Source: [Thrifty Encoders & Feedback](https://docs.thethriftybot.com/software/thriftylib/latest/encoders#can-encoder-feedback),
+checked against the installed ThriftyLib 2026.3.0 C++ headers.

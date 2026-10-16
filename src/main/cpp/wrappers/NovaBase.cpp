@@ -5,9 +5,10 @@
 #include <stdexcept>
 #include <thrifty/nova/NovaConfig.h>
 #include <thrifty/nova/NovaControl.h>
+#include <thrifty/canEncoder/CanEncoderConfig.h>
 
 NovaMotor::NovaMotor(int id, thrifty::Motor::MotorType motorType, int busId)
-    : motor{busId, id, motorType}
+    : motor{busId, id, motorType}, canBusId{busId}
 {
     Configure();
     SetMaxOutput(1.0);
@@ -18,6 +19,7 @@ NovaMotor::NovaMotor(int id, thrifty::Motor::MotorType motorType, int busId)
 void NovaMotor::SimulationPeriodic()
 {
     //A mechanism-specific physics model belongs in the subsystem.
+    if (externalEncoder) externalEncoder->SimulationPeriodic();
 }
 
 void NovaMotor::Set(double speed)
@@ -92,18 +94,89 @@ void NovaMotor::SetPID(double p, double i, double d, double ff, int slot)
 void NovaMotor::SetAbsolutePosition(units::angle::degree_t degree, int slot)
 {
     if (slot < 0 || slot > 1) return;
-    SelectFeedback(thrifty::Motor::FeedbackSensorType::ABS);
-    motor.Control(thrifty::NovaControl::VoltagePosition(degree.value() / 360.0).WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
+    SelectFeedback(externalEncoder ? thrifty::Motor::FeedbackSensorType::CAN_ABS :
+                                    thrifty::Motor::FeedbackSensorType::ABS);
+    motor.Control(thrifty::NovaControl::VoltagePosition(degree.value() / (360.0 * absoluteConversionFactor)).WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
 }
 
 units::angle::degree_t NovaMotor::getAbsolutePosition()
 {
-    return units::angle::degree_t{motor.Status().GetAbsPosition() * 360.0};
+    double rotations = externalEncoder ? externalEncoder->Status().GetPositionAbs() :
+                                         motor.Status().GetAbsPosition();
+    return units::angle::degree_t{rotations * 360.0 * absoluteConversionFactor};
 }
 
 void NovaMotor::SetAbsoluteWrapping(bool enable)
 {
     motor.Configure(thrifty::NovaConfig::AbsWrapping(enable));
+}
+
+void NovaMotor::SetExternalEncoder(int encoderId)
+{
+    if ((encoderId < 0 || encoderId > 62) && encoderId != thrifty::Motor::kNoCanEncoder)
+        throw std::invalid_argument("Nova CAN encoder ID must be 0-62 or kNoCanEncoder");
+    if (followingMotor && encoderId != thrifty::Motor::kNoCanEncoder)
+        throw std::invalid_argument("A follower motor cannot also use external encoder control");
+
+    if (encoderId == thrifty::Motor::kNoCanEncoder)
+        externalEncoder.reset();
+    else if (!externalEncoderId || *externalEncoderId != encoderId)
+        externalEncoder = std::make_unique<thrifty::CanEncoder>(canBusId, encoderId);
+
+    externalEncoderId = encoderId;
+    //Keep internal control selected until an absolute position is commanded.
+    if (feedbackSensor == thrifty::Motor::FeedbackSensorType::ABS ||
+        feedbackSensor == thrifty::Motor::FeedbackSensorType::CAN_ABS)
+        feedbackSensor = externalEncoder ? thrifty::Motor::FeedbackSensorType::CAN_ABS :
+                                           thrifty::Motor::FeedbackSensorType::ABS;
+    Configure();
+}
+
+void NovaMotor::SetAbsoluteConversionFactor(double value)
+{
+    if (!std::isfinite(value) || value <= 0)
+        throw std::invalid_argument("Nova absolute conversion factor must be finite and positive");
+    absoluteConversionFactor = value;
+    Configure();
+}
+
+void NovaMotor::SetAbsoluteEncoderInverted(bool inverted)
+{
+    absoluteEncoderInverted = inverted;
+    auto direction = inverted ? thrifty::Motor::Direction::COUNTER_CLOCKWISE :
+                                thrifty::Motor::Direction::CLOCKWISE;
+    if (externalEncoder)
+        externalEncoder->Configure(thrifty::CanEncoderConfig::Direction(direction));
+    else
+        motor.Configure(thrifty::NovaConfig::AbsoluteDirection(direction));
+}
+
+units::angular_velocity::revolutions_per_minute_t NovaMotor::getAbsoluteVelocity()
+{
+    double rotationsPerSecond = externalEncoder ? externalEncoder->Status().GetVelocity() :
+                                                  motor.Status().GetAbsVelocity();
+    return units::angular_velocity::revolutions_per_minute_t{
+        rotationsPerSecond * 60.0 * absoluteConversionFactor};
+}
+
+void NovaMotor::SetSoftLimitSource(thrifty::Motor::FeedbackSensorType sensor)
+{
+    if (sensor != thrifty::Motor::FeedbackSensorType::ABS &&
+        sensor != thrifty::Motor::FeedbackSensorType::INTERNAL)
+        throw std::invalid_argument("Nova wrapper soft limits support internal or absolute feedback");
+    softLimitSensor = sensor;
+    Configure();
+}
+
+double NovaMotor::SoftLimitConversionFactor() const
+{
+    return softLimitSensor == thrifty::Motor::FeedbackSensorType::ABS ?
+        absoluteConversionFactor : config.positionConversionFactor;
+}
+
+double NovaMotor::GetAppliedVoltage()
+{
+    return motor.Status().GetAppliedVoltage();
 }
 
 void NovaMotor::SetInverted(bool inversion)
@@ -154,6 +227,28 @@ void NovaMotor::EnableForwardSoftLimit(bool enable)
     motor.Configure(thrifty::NovaConfig::SoftLimitEnable(enable));
 }
 
+void NovaMotor::SetVoltageCompensation(double voltage)
+{
+    if (!std::isfinite(voltage) || voltage <= 0)
+        throw std::invalid_argument("Nova voltage compensation must be finite and positive");
+    config.enableVoltageCompensation = true;
+    config.voltageCompensation = voltage;
+    motor.Configure(thrifty::NovaConfig::VoltageComp(voltage));
+}
+
+void NovaMotor::SetFollow(int leaderCanId)
+{
+    if (externalEncoder)
+        throw std::invalid_argument("External encoder control cannot also follow another motor");
+    followingMotor = true;
+    motor.Configure(thrifty::NovaConfig::Follow(leaderCanId));
+}
+
+double NovaMotor::GetOutputCurrent()
+{
+    return motor.Status().GetStatorCurrent();
+}
+
 void NovaMotor::EnableReverseSoftLimit(bool enable)
 {
     EnableForwardSoftLimit(enable);
@@ -163,14 +258,19 @@ void NovaMotor::SetForwardSoftLimit(units::angle::degree_t degrees)
 {
     config.forwardSoftLimit = degrees;
     motor.Configure(thrifty::NovaConfig::SoftLimitForward(
-        degrees.value() / (360.0 * config.positionConversionFactor)));
+        degrees.value() / (360.0 * SoftLimitConversionFactor())));
 }
 
 void NovaMotor::SetReverseSoftLimit(units::angle::degree_t degrees)
 {
     config.reverseSoftLimit = degrees;
     motor.Configure(thrifty::NovaConfig::SoftLimitReverse(
-        degrees.value() / (360.0 * config.positionConversionFactor)));
+        degrees.value() / (360.0 * SoftLimitConversionFactor())));
+}
+
+void NovaMotor::ApplyConfiguration()
+{
+    ApplyConfiguration(config);
 }
 
 void NovaMotor::ApplyConfiguration(MotorConfig motorConfig)
@@ -191,18 +291,26 @@ void NovaMotor::ApplyConfiguration(MotorConfig motorConfig)
 
 void NovaMotor::Configure()
 {
+    if (externalEncoderId)
+        motor.Configure(thrifty::NovaConfig::CanEncoderId(*externalEncoderId));
+    if (absoluteEncoderInverted)
+        SetAbsoluteEncoderInverted(*absoluteEncoderInverted);
+
+    //ABS soft limits follow the selected absolute encoder, including a CAN encoder.
+    auto limitSource = externalEncoder && softLimitSensor == thrifty::Motor::FeedbackSensorType::ABS ?
+        thrifty::Motor::FeedbackSensorType::CAN_ABS : softLimitSensor;
     motor.SetInverted(config.inverted);
     motor.Configure(
         thrifty::NovaConfig::SensorToMechanismRatio(1.0),
         thrifty::NovaConfig::FeedbackSensor(feedbackSensor),
-        thrifty::NovaConfig::SoftLimitSource(thrifty::Motor::FeedbackSensorType::INTERNAL),
+        thrifty::NovaConfig::SoftLimitSource(limitSource),
         thrifty::NovaConfig::BrakeMode(config.neutralMode == NeutralMode::Brake),
         thrifty::NovaConfig::StatorCurrent(config.enableCurrentLimit ? config.currentLimitAmps : 40),
         thrifty::NovaConfig::VoltageComp(config.enableVoltageCompensation ? config.voltageCompensation : 0),
         thrifty::NovaConfig::SoftLimitForward(config.forwardSoftLimit.value() /
-                                            (360.0 * config.positionConversionFactor)),
+                                            (360.0 * SoftLimitConversionFactor())),
         thrifty::NovaConfig::SoftLimitReverse(config.reverseSoftLimit.value() /
-                                            (360.0 * config.positionConversionFactor)),
+                                            (360.0 * SoftLimitConversionFactor())),
         thrifty::NovaConfig::SoftLimitEnable(config.enableForwardSoftLimit));
 }
 
@@ -231,13 +339,13 @@ bool NovaMotor::isReverseSoftLimitEnabled()
 units::angle::degree_t NovaMotor::getForwardLimit()
 {
     return units::angle::degree_t{motor.Status().GetSoftLimitForward() *
-                                 360.0 * config.positionConversionFactor};
+                                 360.0 * SoftLimitConversionFactor()};
 }
 
 units::angle::degree_t NovaMotor::getReverseLimit()
 {
     return units::angle::degree_t{motor.Status().GetSoftLimitReverse() *
-                                 360.0 * config.positionConversionFactor};
+                                 360.0 * SoftLimitConversionFactor()};
 }
 
 void NovaMotor::SelectFeedback(thrifty::Motor::FeedbackSensorType sensor)

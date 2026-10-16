@@ -1,6 +1,9 @@
 #pragma once
 
 #include <thrifty/nova/Nova.h>
+#include <thrifty/canEncoder/CanEncoder.h>
+#include <memory>
+#include <optional>
 
 #include "wrappers/MotorBase.h"
 
@@ -48,15 +51,28 @@ public:
     //ff is Nova's native F gain, not REV's kV gain.
     void SetPID(double p, double i, double d, double ff, int slot) override;
 
-    //sets an absolute encoder position using voltage-based PID, in sensor degrees.
+    //sets an absolute encoder position using voltage-based PID, in output degrees.
     //configure the connected encoder type/direction in Thrifty Config first.
     void SetAbsolutePosition(units::angle::degree_t degree, int slot = 0);
 
-    //gets the absolute encoder position in sensor degrees, without gear conversion.
+    //gets the absolute encoder position in output degrees.
     units::angle::degree_t getAbsolutePosition();
 
     //enables the Nova's onboard shortest-path wrapping for absolute position.
     void SetAbsoluteWrapping(bool enable);
+
+    //use a Thrifty CAN encoder on this motor's bus for absolute control/readings.
+    //IDs are 0-62; kNoCanEncoder returns to the wired absolute encoder.
+    //requires Nova firmware supporting CAN_ENCODER (2027.0.0-beta.4 or newer).
+    void SetExternalEncoder(int encoderId);
+
+    //output rotations per absolute encoder rotation; defaults to 1.
+    void SetAbsoluteConversionFactor(double value);
+    void SetAbsoluteEncoderInverted(bool inverted);
+    units::angular_velocity::revolutions_per_minute_t getAbsoluteVelocity();
+
+    //choose the encoder used for both soft limits, separately from PID feedback.
+    void SetSoftLimitSource(thrifty::Motor::FeedbackSensorType sensor);
 
     //configuration setter for inversion
     void SetInverted(bool inversion) override;
@@ -79,6 +95,16 @@ public:
     //configuration setter for current limit value
     void SetCurrentLimit(int current) override;
 
+    //enable voltage compensation and store the nominal voltage.
+    void SetVoltageCompensation(double voltage);
+
+    //follow a leader's CAN ID on the same bus; use SetInverted for direction.
+    void SetFollow(int leaderCanId);
+
+    //read motor stator current in amps.
+    double GetOutputCurrent();
+    double GetAppliedVoltage();
+
     //configuration setter for enabling both soft limits; Nova has one shared switch.
     void EnableForwardSoftLimit(bool enable) override;
 
@@ -91,7 +117,10 @@ public:
     //configuration setter for setting the reverse limit position
     void SetReverseSoftLimit(units::angle::degree_t degrees) override;
 
-    //apply the configuration of values
+    //reapply the internal configuration updated by the setters.
+    void ApplyConfiguration();
+
+    //replace and apply the configuration of values.
     //forward and reverse enable flags must match; otherwise throws invalid_argument.
     void ApplyConfiguration(MotorConfig motorConfig) override;
 
@@ -115,8 +144,16 @@ public:
 
 private:
     thrifty::Nova motor;
+    int canBusId;
+    std::unique_ptr<thrifty::CanEncoder> externalEncoder;
+    std::optional<int> externalEncoderId;
+    std::optional<bool> absoluteEncoderInverted;
+    bool followingMotor = false;
     MotorConfig config;
     double maxOutput = 1.0;
+    double absoluteConversionFactor = 1.0;
+    thrifty::Motor::FeedbackSensorType softLimitSensor = thrifty::Motor::FeedbackSensorType::INTERNAL;
+    double SoftLimitConversionFactor() const;
     bool wrappingEnabled = false;
     thrifty::Motor::FeedbackSensorType feedbackSensor = thrifty::Motor::FeedbackSensorType::INTERNAL;
 
