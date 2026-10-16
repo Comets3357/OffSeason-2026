@@ -83,10 +83,12 @@ Steering gains must be checked and tuned on the Nova hardware.
 
 All active motors in these three subsystems use Nova controllers with the NEO
 profile. Their constructors apply settings using `ApplyConfiguration`.
-The static shooter's flywheel leader is CAN ID 31, with 32 and 33 following it
-without inversion. All three use a 60 A stator limit and disabled voltage
-compensation. Holding the driver's left trigger commands 50% duty cycle;
-release or command interruption stops the leader and its followers.
+The static shooter's flywheel motors are CAN IDs 31, 32, and 33. Each receives
+its own output command; firmware following is not used for the flywheels.
+Motors 31 and 32 are non-inverted, and motor 33 is inverted. All three use a
+60 A stator limit and disabled voltage compensation. Holding the driver's
+left bumper commands each motor to 50% duty cycle; release or command
+interruption commands all three to zero.
 Pitch is CAN ID 41, with its existing configuration and methods preserved.
 There is no yaw motor or yaw motor control.
 

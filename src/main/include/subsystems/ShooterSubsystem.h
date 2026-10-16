@@ -39,7 +39,7 @@ class ShooterSubsystem : public frc2::SubsystemBase {
 
         //setters
 
-        //sets all flywheels to a duty cycle from -1 to 1 through the leader.
+        //sets all flywheels to a duty cycle from -1 to 1 with individual motor commands.
         void setFlywheelSpeed(double percent);
 
 
@@ -105,8 +105,8 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         VisionSubsystem& m_vision;
         DriveSubsystem& m_drive;
 
-        static constexpr int kFlywheelLeaderId = 31;
-        NovaMotor primaryFlywheelMotor{kFlywheelLeaderId};
+        static constexpr int kPrimaryFlywheelId = 31;
+        NovaMotor primaryFlywheelMotor{kPrimaryFlywheelId};
         NovaMotor secondaryFlywheelMotor{32};
         NovaMotor thirdFlywheelMotor{33};
         NovaMotor shooterPitchMotor{41};

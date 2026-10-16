@@ -25,21 +25,23 @@ constexpr frc::Pose2d lowerRedPass{14.5_m, 2_m, 0_rad};
 ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_vision) : 
     m_vision(m_vision), m_drive(m_drive) {
 
-    //All three motors use the same limits; 32 and 33 follow the leader at 31.
+    //Command each flywheel individually; no firmware following.
     MotorBase::MotorConfig flywheelConfig;
     flywheelConfig.currentLimitAmps = 60;
+    flywheelConfig.inverted = false;
     flywheelConfig.enableVoltageCompensation = false; //percent output follows bus voltage
     flywheelConfig.positionConversionFactor = 0.5;
     flywheelConfig.velocityConversionFactor = 0.5;
 
     primaryFlywheelMotor.ApplyConfiguration(flywheelConfig);
-    primaryFlywheelMotor.Set(0);
     primaryFlywheelMotor.SetPID(flywheelP, flywheelI, flywheelD, flywheelFF, 0);
 
     secondaryFlywheelMotor.ApplyConfiguration(flywheelConfig);
-    secondaryFlywheelMotor.SetFollow(kFlywheelLeaderId);
+    secondaryFlywheelMotor.SetPID(flywheelP, flywheelI, flywheelD, flywheelFF, 0);
     thirdFlywheelMotor.ApplyConfiguration(flywheelConfig);
-    thirdFlywheelMotor.SetFollow(kFlywheelLeaderId);
+    thirdFlywheelMotor.SetInverted(true);
+    thirdFlywheelMotor.SetPID(flywheelP, flywheelI, flywheelD, flywheelFF, 0);
+    setFlywheelSpeed(0);
 
     shooterPitchMotor.SetInverted(true);
     shooterPitchMotor.SetCurrentLimit(20);
@@ -70,6 +72,8 @@ void ShooterSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Flywheel Velocity", primaryFlywheelMotor.getVelocity().value());
     frc::SmartDashboard::PutNumber("Primary Flywheel Current", primaryFlywheelMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Primary Flywheel Voltage", primaryFlywheelMotor.GetAppliedVoltage());
+    frc::SmartDashboard::PutNumber("Secondary Flywheel Voltage", secondaryFlywheelMotor.GetAppliedVoltage());
+    frc::SmartDashboard::PutNumber("Third Flywheel Voltage", thirdFlywheelMotor.GetAppliedVoltage());
     frc::SmartDashboard::PutNumber("Recieved Flywheel Velocity Value", getSmartDashboardVelocity());
     frc::SmartDashboard::PutNumber("Recieved Flywheel Speed Value", getSmartDashboardSpeed());
 }
@@ -83,14 +87,18 @@ void ShooterSubsystem::SimulationPeriodic() {
 
 void ShooterSubsystem::setFlywheelSpeed(double speed) {
     primaryFlywheelMotor.Set(speed);
+    secondaryFlywheelMotor.Set(speed);
+    thirdFlywheelMotor.Set(speed);
 }
 
 void ShooterSubsystem::setFlywheelVelocity(double RPMs) {
     if (RPMs == 0) {
-        primaryFlywheelMotor.Set(0);
+        setFlywheelSpeed(0);
         return;
     }
     primaryFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{RPMs});
+    secondaryFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{RPMs});
+    thirdFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{RPMs});
 }
 
 void ShooterSubsystem::setHoodPitchVelocity(double speed) {

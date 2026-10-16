@@ -14,7 +14,7 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
     frc2::CommandXboxController* m_driverController, frc2::CommandXboxController* m_operatorController) {
 
     frc2::Trigger driverStart = m_driverController->Start();
-    frc2::Trigger driverLeftTrigger = m_driverController->LeftTrigger();
+    frc2::Trigger driverLeftBumper = m_driverController->LeftBumper();
     frc2::Trigger driverRightTrigger = m_driverController->RightTrigger();
     frc2::Trigger driverRightBumper = m_driverController->RightBumper();
     frc2::Trigger driverX = m_driverController->X();
@@ -50,8 +50,8 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
         m_intake->SetAngle(m_intake->getDeployState() ? INTAKE_DOWN : INTAKE_UP);
     }, {m_intake}));
 
-    //Hold left trigger for 50% flywheel output; stop on release or interruption.
-    driverLeftTrigger.WhileTrue(frc2::cmd::RunEnd(
+    //Hold left bumper for 50% flywheel output; stop on release or interruption.
+    driverLeftBumper.WhileTrue(frc2::cmd::RunEnd(
         [=] { m_shooter->setFlywheelSpeed(0.5); },
         [=] { m_shooter->setFlywheelSpeed(0); }, {m_shooter}));
 
