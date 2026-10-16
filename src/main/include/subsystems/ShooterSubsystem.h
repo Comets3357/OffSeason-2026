@@ -39,22 +39,16 @@ class ShooterSubsystem : public frc2::SubsystemBase {
 
         //setters
 
-        //sets the primary flywheel's velocity to a given value.
-        void setFlywheelSpeed(double velocity);
+        //sets all flywheels to a duty cycle from -1 to 1 through the leader.
+        void setFlywheelSpeed(double percent);
 
-        //sets the secondary flywheel's velocity to a given value.
-        void setSecondaryFlywheelVelocity(double velocity);
 
         void setFlywheelVelocity(double RPMs);
 
-        //sets the hood yaw in degrees.
-        void setHoodYaw(units::degree_t yaw);
 
         //sets the hood pitch in degrees.
         void setHoodPitch(units::degree_t pitch);
 
-        //sets the motor that yaws the hood to a certain speed (probably dont use this one unless you know what you're doing.)
-        void setHoodYawVelocity(double speed);
 
         //sets the motor that pitches the hood to a certain speed (probably dont use this one unless you know what you're doing.)
         void setHoodPitchVelocity(double speed);
@@ -70,8 +64,6 @@ class ShooterSubsystem : public frc2::SubsystemBase {
 
         //maybe we would want to merge these together to return a struct or something?
 
-        //returns the velocity of the hood's yaw motor
-        double getHoodYawVelocity();
 
         //returns the velocity of the hood's pitch motor
         double getHoodPitchVelocity();
@@ -95,12 +87,6 @@ class ShooterSubsystem : public frc2::SubsystemBase {
 
     private:
 
-        const double yawP = 0.12;
-        const double yawI = 0;
-        const double yawD = 0;
-
-        const double lowYawP = 0.08;
-
         const double pitchP = 0.16;
         const double pitchI = 0;
         const double pitchD = 0;
@@ -119,10 +105,11 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         VisionSubsystem& m_vision;
         DriveSubsystem& m_drive;
 
-        NovaMotor shooterYawMotor{31};
-        NovaMotor shooterPitchMotor{32};
-        NovaMotor primaryFlywheelMotor{33};
-        // NovaMotor secondaryFlywheelMotor{34};
+        static constexpr int kFlywheelLeaderId = 31;
+        NovaMotor primaryFlywheelMotor{kFlywheelLeaderId};
+        NovaMotor secondaryFlywheelMotor{32};
+        NovaMotor thirdFlywheelMotor{33};
+        NovaMotor shooterPitchMotor{41};
         
         double flywheelOperatorOffset = 0;
         double HSLRpmOffsetConstant = 50; /*THIS NEEDS TO BE TUNEDDDDDDDDDDD :) */

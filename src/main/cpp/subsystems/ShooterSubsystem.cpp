@@ -5,7 +5,6 @@
 #include <cmath>
 #include <frc/DriverStation.h>
 
-constexpr double SHOOTER_YAW_CONVERSION = 473.85526 / 360.0; // output rotations per encoder rotation
 constexpr double SHOOTER_PITCH_CONVERSION = (1.0/20.0) * (15.0/9.0);
 constexpr double SHOOTER_OFFSET = 10; //DEGREES
 constexpr double SHOOTER_FORWARD_LIMIT = 450;
@@ -26,14 +25,21 @@ constexpr frc::Pose2d lowerRedPass{14.5_m, 2_m, 0_rad};
 ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_vision) : 
     m_vision(m_vision), m_drive(m_drive) {
 
-    primaryFlywheelMotor.SetCurrentLimit(60);
-    primaryFlywheelMotor.SetInverted(false);
-    primaryFlywheelMotor.SetConversionFactor(0.5);
-    primaryFlywheelMotor.SetVoltageCompensation(10);
+    //All three motors use the same limits; 32 and 33 follow the leader at 31.
+    MotorBase::MotorConfig flywheelConfig;
+    flywheelConfig.currentLimitAmps = 60;
+    flywheelConfig.enableVoltageCompensation = false; //percent output follows bus voltage
+    flywheelConfig.positionConversionFactor = 0.5;
+    flywheelConfig.velocityConversionFactor = 0.5;
+
+    primaryFlywheelMotor.ApplyConfiguration(flywheelConfig);
     primaryFlywheelMotor.Set(0);
-    //Nova gains use native motor rotations per second. Retune on the robot.
     primaryFlywheelMotor.SetPID(flywheelP, flywheelI, flywheelD, flywheelFF, 0);
-    primaryFlywheelMotor.ApplyConfiguration();
+
+    secondaryFlywheelMotor.ApplyConfiguration(flywheelConfig);
+    secondaryFlywheelMotor.SetFollow(kFlywheelLeaderId);
+    thirdFlywheelMotor.ApplyConfiguration(flywheelConfig);
+    thirdFlywheelMotor.SetFollow(kFlywheelLeaderId);
 
     shooterPitchMotor.SetInverted(true);
     shooterPitchMotor.SetCurrentLimit(20);
@@ -48,21 +54,6 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
     shooterPitchMotor.Set(0);
     shooterPitchMotor.ApplyConfiguration();
 
-    shooterYawMotor.SetCurrentLimit(30);
-    shooterYawMotor.Set(0);
-    shooterYawMotor.SetAbsoluteWrapping(false);
-    shooterYawMotor.SetInverted(true);
-    shooterYawMotor.SetAbsoluteConversionFactor(SHOOTER_YAW_CONVERSION);
-    shooterYawMotor.SetAbsoluteEncoderInverted(true);
-    shooterYawMotor.SetMaxOutput(0.75);
-    shooterYawMotor.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::ABS);
-    shooterYawMotor.SetForwardSoftLimit(units::degree_t{SHOOTER_FORWARD_LIMIT});
-    shooterYawMotor.SetReverseSoftLimit(units::degree_t{SHOOTER_REVERSE_LIMIT});
-    shooterYawMotor.EnableForwardSoftLimit(true);
-    shooterYawMotor.SetPID(yawP, yawI, yawD, 0, 0);
-    shooterYawMotor.SetPID(lowYawP, yawI, yawD, 0, 1);
-    shooterYawMotor.ApplyConfiguration();
-
     frc::SmartDashboard::PutNumber("Smart Dashboard Flywheel Velocity", 0);
     frc::SmartDashboard::PutNumber("Smart Dashboard Shooter Pitch", 25);
     frc::SmartDashboard::PutNumber("Smart Dashboard Flywheel Compensation", 0);
@@ -74,7 +65,8 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
 void ShooterSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Shooter Pitch", getHoodPitch());
     frc::SmartDashboard::PutNumber("Shooter Yaw", getHoodYaw());
-    frc::SmartDashboard::PutNumber("Shooter Yaw Current", shooterYawMotor.GetOutputCurrent());
+    frc::SmartDashboard::PutNumber("Secondary Flywheel Current", secondaryFlywheelMotor.GetOutputCurrent());
+    frc::SmartDashboard::PutNumber("Third Flywheel Current", thirdFlywheelMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Flywheel Velocity", primaryFlywheelMotor.getVelocity().value());
     frc::SmartDashboard::PutNumber("Primary Flywheel Current", primaryFlywheelMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Primary Flywheel Voltage", primaryFlywheelMotor.GetAppliedVoltage());
@@ -85,7 +77,8 @@ void ShooterSubsystem::Periodic() {
 void ShooterSubsystem::SimulationPeriodic() {
     primaryFlywheelMotor.SimulationPeriodic();
     shooterPitchMotor.SimulationPeriodic();
-    shooterYawMotor.SimulationPeriodic();
+    secondaryFlywheelMotor.SimulationPeriodic();
+    thirdFlywheelMotor.SimulationPeriodic();
 }
 
 void ShooterSubsystem::setFlywheelSpeed(double speed) {
@@ -100,33 +93,13 @@ void ShooterSubsystem::setFlywheelVelocity(double RPMs) {
     primaryFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{RPMs});
 }
 
-void ShooterSubsystem::setSecondaryFlywheelVelocity(double RPMs) {
-}
-
 void ShooterSubsystem::setHoodPitchVelocity(double speed) {
     shooterPitchMotor.Set(speed);
-}
-
-void ShooterSubsystem::setHoodYawVelocity(double speed) {
-    shooterYawMotor.Set(speed);
 }
 
 void ShooterSubsystem::setHoodPitch(units::degree_t angle) {
     double target = std::clamp(angle.value() - PITCH_OFFSET, 5.5, 19.5);
     shooterPitchMotor.SetAbsolutePosition(units::degree_t{target});
-}
-
-void ShooterSubsystem::setHoodYaw(units::degree_t angle) {
-    //use the lower gain in the arc with less tether force.
-    int selectedSlot = (angle.value() > 0 && angle.value() < 180) ? 1 : 0;
-    frc::SmartDashboard::PutBoolean("SMALLER PID?", selectedSlot == 1);
-    double target = std::clamp(angle.value() + SHOOTER_OFFSET,
-                               SHOOTER_REVERSE_LIMIT, SHOOTER_FORWARD_LIMIT);
-    shooterYawMotor.SetAbsolutePosition(units::degree_t{target}, selectedSlot);
-}
-
-double ShooterSubsystem::getHoodYawVelocity() {
-    return shooterYawMotor.getAbsoluteVelocity().value();
 }
 
 double ShooterSubsystem::getHoodPitchVelocity() {
@@ -139,7 +112,7 @@ double ShooterSubsystem::getPrimaryFlywheelRPM() {
 }
 
 double ShooterSubsystem::getSecondaryFlywheelRPM() {
-    return 0;
+    return secondaryFlywheelMotor.getVelocity().value();
 }
 
 //returns the current position of the shooter's hood
@@ -154,7 +127,8 @@ double ShooterSubsystem::getTargetHoodPitch() {
 
 //returns the current position of the shooter's hood
 double ShooterSubsystem::getHoodYaw() {
-    return shooterYawMotor.getAbsolutePosition().value() - SHOOTER_OFFSET;
+    //The static shooter has no yaw motor; report its fixed robot-relative reference.
+    return 0;
 }
 
 //returns the angle of the shooter's goal hood position

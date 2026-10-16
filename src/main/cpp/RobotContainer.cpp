@@ -29,7 +29,7 @@ RobotContainer::RobotContainer() {
   
 } 
 void RobotContainer::ConfigureBindings() {
-  DriverCommands(&m_drive, &m_index, &m_intake, &m_driverController, &m_operatorController);
+  DriverCommands(&m_drive, &m_index, &m_intake, &m_shooter, &m_driverController, &m_operatorController);
   // OperatorCommands(&m_drive, &m_intake, &m_climb, &m_shooter, &m_index, &m_operatorController);
   // AutonCommands(&m_drive, &m_climb, &m_intake, &m_index, &m_shooter);
 }

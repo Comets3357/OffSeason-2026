@@ -82,14 +82,18 @@ Steering gains must be checked and tuned on the Nova hardware.
 ## Intake, Index, and Shooter
 
 All active motors in these three subsystems use Nova controllers with the NEO
-profile. Their constructors use setters followed by `ApplyConfiguration()`.
-The previously disabled secondary shooter flywheel remains disabled.
+profile. Their constructors apply settings using `ApplyConfiguration`.
+The static shooter's flywheel leader is CAN ID 31, with 32 and 33 following it
+without inversion. All three use a 60 A stator limit and disabled voltage
+compensation. Holding the driver's left trigger commands 50% duty cycle;
+release or command interruption stops the leader and its followers.
+Pitch is CAN ID 41, with its existing configuration and methods preserved.
+There is no yaw motor or yaw motor control.
 
 `SetAbsoluteConversionFactor` takes output rotations per absolute encoder
 rotation, independently of `SetConversionFactor` for the internal encoder.
 Its default is 1.0, preserving the swerve's sensor-degree behavior.
-Intake uses 18/28, shooter pitch uses (1/20)*(15/9), and shooter yaw retains
-473.85526 output degrees per encoder rotation (divided by 360 for this API).
+Shooter pitch uses (1/20)*(15/9). The static shooter has no yaw encoder.
 
 `SetSoftLimitSource(ABS)` makes limits use the absolute encoder and its conversion
 factor. Set both limits before enabling them. Soft-limit source is independent

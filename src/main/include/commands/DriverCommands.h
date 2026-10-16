@@ -5,6 +5,7 @@
 #include "subsystems/DriveSubsystem.h"
 #include "subsystems/IntakeSubsystem.h"
 #include "subsystems/IndexSubsystem.h"
+#include "subsystems/ShooterSubsystem.h"
 
 
 
@@ -21,7 +22,7 @@
 #include <Constants.h>
 
 
-void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubsystem* m_intake, frc2::CommandXboxController* m_driverController, frc2::CommandXboxController* m_operatorController);
+void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubsystem* m_intake, ShooterSubsystem* m_shooter, frc2::CommandXboxController* m_driverController, frc2::CommandXboxController* m_operatorController);
 
 std::function<bool()> isMoving(DriveSubsystem* m_drive);
 
