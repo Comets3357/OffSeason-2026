@@ -9,24 +9,25 @@ constexpr double INTAKE_ENCODER_RATIO = 1.0 / 105.0;
 IntakeSubsystem::IntakeSubsystem() {
 
     //PID values of intake 
-    const double intakeP = 0.02;
+    const double intakeP = 2;
     const double intakeI = 0;
     const double intakeD = 0;
 
     fuelIntake.SetCurrentLimit(65);
+    fuelIntake.SetInverted(true);
     fuelIntake.ApplyConfiguration();
 
     fuelDeploy.SetCurrentLimit(40);
     fuelDeploy.SetExternalEncoder(51); //Thrifty through-bore CAN encoder
-    fuelDeploy.SetAbsoluteConversionFactor(INTAKE_ENCODER_RATIO);
+    fuelDeploy.SetAbsoluteConversionFactor(1);
     fuelDeploy.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::ABS);
-    fuelDeploy.SetInverted(false);
+    fuelDeploy.SetInverted(true);
     fuelDeploy.SetAbsoluteWrapping(false);
-    fuelDeploy.SetForwardSoftLimit(125_deg);
+    fuelDeploy.SetForwardSoftLimit(134_deg);
     fuelDeploy.SetReverseSoftLimit(5_deg);
     fuelDeploy.EnableForwardSoftLimit(true);
     fuelDeploy.Set(0);
-    fuelDeploy.SetMaxOutput(0.5);
+    fuelDeploy.SetMaxOutput(1);
     fuelDeploy.SetPID(intakeP, intakeI, intakeD, 0, 0);
     fuelDeploy.ApplyConfiguration();
 
@@ -37,6 +38,7 @@ IntakeSubsystem::IntakeSubsystem() {
 void IntakeSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Intake angle", GetAngle());
     frc::SmartDashboard::PutNumber("Intake target angle", GetTargetAngle());
+    frc::SmartDashboard::PutNumber("Intake Amperage", fuelDeploy.GetAppliedVoltage());
     frc::SmartDashboard::PutNumber("Intake roller speed", fuelIntake.getVelocity().value());
 }
 

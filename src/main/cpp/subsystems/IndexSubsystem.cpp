@@ -43,10 +43,6 @@ void IndexSubsystem::setHopperSpeed(double percent) {
     HopperSpeed = percent;
 }
 
-void IndexSubsystem::setHighSpeedRailSpeed(double percent) {
-    setKickerSpeed(percent);
-}
-
 void IndexSubsystem::setKickerSpeed(double percent) {
     percent = std::clamp(percent, -1.0, 1.0);
     KickerMotor.Set(percent);
