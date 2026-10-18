@@ -146,15 +146,15 @@ void SparkMaxMotor::EnableReverseSoftLimit(bool enable)
     Configure();
 }
 
-void SparkMaxMotor::SetForwardSoftLimit(units::angle::degree_t degrees)
+void SparkMaxMotor::SetForwardSoftLimit(units::angle::turn_t rotations)
 {
-    config.softLimit.ForwardSoftLimit(degrees.value());
+    config.softLimit.ForwardSoftLimit(units::angle::degree_t{rotations}.value());
     Configure();
 }
 
-void SparkMaxMotor::SetReverseSoftLimit(units::angle::degree_t degrees)
+void SparkMaxMotor::SetReverseSoftLimit(units::angle::turn_t rotations)
 {
-    config.softLimit.ReverseSoftLimit(degrees.value());
+    config.softLimit.ReverseSoftLimit(units::angle::degree_t{rotations}.value());
     Configure();
 }
 
@@ -365,15 +365,15 @@ void SparkFlexMotor::EnableReverseSoftLimit(bool enable)
     Configure();
 }
 
-void SparkFlexMotor::SetForwardSoftLimit(units::angle::degree_t degrees)
+void SparkFlexMotor::SetForwardSoftLimit(units::angle::turn_t rotations)
 {
-    config.softLimit.ForwardSoftLimit(degrees.value());
+    config.softLimit.ForwardSoftLimit(units::angle::degree_t{rotations}.value());
     Configure();
 }
 
-void SparkFlexMotor::SetReverseSoftLimit(units::angle::degree_t degrees)
+void SparkFlexMotor::SetReverseSoftLimit(units::angle::turn_t rotations)
 {
-    config.softLimit.ReverseSoftLimit(degrees.value());
+    config.softLimit.ReverseSoftLimit(units::angle::degree_t{rotations}.value());
     Configure();
 }
 

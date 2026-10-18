@@ -77,6 +77,13 @@ void NovaMotor::SetPosition(units::angle::degree_t degree, int slot)
     motor.Control(thrifty::NovaControl::Position(motorRotations).WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
 }
 
+void NovaMotor::SetInternalEncoderPosition(units::angle::degree_t degree)
+{
+    if (!std::isfinite(degree.value()))
+        throw std::invalid_argument("Nova internal encoder position must be finite");
+    motor.SetIntPosition(degree.value() / (360.0 * config.positionConversionFactor));
+}
+
 void NovaMotor::SetPID(double p, double i, double d, double ff, int slot)
 {
     if (slot == 0)
@@ -97,6 +104,41 @@ void NovaMotor::SetAbsolutePosition(units::angle::degree_t degree, int slot)
     SelectFeedback(externalEncoder ? thrifty::Motor::FeedbackSensorType::CAN_ABS :
                                     thrifty::Motor::FeedbackSensorType::ABS);
     motor.Control(thrifty::NovaControl::VoltagePosition(degree.value() / (360.0 * absoluteConversionFactor)).WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
+}
+
+void NovaMotor::SetMotionProfile(double maxVelocity, double maxAcceleration,
+                                 double kV, double kA, double kS, double kG,
+                                 thrifty::Motor::MPGravityType gravityType, int slot)
+{
+    if (slot < 0 || slot > 1)
+        throw std::invalid_argument("Nova motion profile slot must be 0 or 1");
+    if (!std::isfinite(maxVelocity) || maxVelocity <= 0 ||
+        !std::isfinite(maxAcceleration) || maxAcceleration <= 0 ||
+        !std::isfinite(kV) || !std::isfinite(kA) ||
+        !std::isfinite(kS) || !std::isfinite(kG))
+        throw std::invalid_argument("Nova motion profile needs positive limits and finite gains");
+
+    if (slot == 0)
+        motor.Configure(thrifty::NovaConfig::mp0(maxVelocity, maxAcceleration,
+                                                kV, kA, kS, kG, gravityType));
+    else
+        motor.Configure(thrifty::NovaConfig::mp1(maxVelocity, maxAcceleration,
+                                                kV, kA, kS, kG, gravityType));
+}
+
+void NovaMotor::SetAbsoluteMotionProfilePosition(units::angle::degree_t degree, int slot)
+{
+    if (slot < 0 || slot > 1 || !std::isfinite(degree.value()))
+        throw std::invalid_argument("Nova motion profile needs a finite target and slot 0 or 1");
+    //The wrapper keeps Nova's native sensor ratio at 1. Cosine gravity needs
+    //actual mechanism angles, so only a direct-mounted absolute encoder is supported.
+    if (absoluteConversionFactor != 1.0)
+        throw std::invalid_argument("Nova absolute motion profiling requires a 1:1 encoder");
+
+    SelectFeedback(externalEncoder ? thrifty::Motor::FeedbackSensorType::CAN_ABS :
+                                    thrifty::Motor::FeedbackSensorType::ABS);
+    motor.Control(thrifty::NovaControl::MotionProfile(degree.value() / 360.0)
+        .WithSlot(static_cast<thrifty::NovaControl::Slot>(slot)));
 }
 
 units::angle::degree_t NovaMotor::getAbsolutePosition()
@@ -254,18 +296,18 @@ void NovaMotor::EnableReverseSoftLimit(bool enable)
     EnableForwardSoftLimit(enable);
 }
 
-void NovaMotor::SetForwardSoftLimit(units::angle::degree_t degrees)
+void NovaMotor::SetForwardSoftLimit(units::angle::turn_t rotations)
 {
-    config.forwardSoftLimit = degrees;
+    config.forwardSoftLimit = units::angle::degree_t{rotations};
     motor.Configure(thrifty::NovaConfig::SoftLimitForward(
-        degrees.value() / (360.0 * SoftLimitConversionFactor())));
+        rotations.value() / SoftLimitConversionFactor()));
 }
 
-void NovaMotor::SetReverseSoftLimit(units::angle::degree_t degrees)
+void NovaMotor::SetReverseSoftLimit(units::angle::turn_t rotations)
 {
-    config.reverseSoftLimit = degrees;
+    config.reverseSoftLimit = units::angle::degree_t{rotations};
     motor.Configure(thrifty::NovaConfig::SoftLimitReverse(
-        degrees.value() / (360.0 * SoftLimitConversionFactor())));
+        rotations.value() / SoftLimitConversionFactor()));
 }
 
 void NovaMotor::ApplyConfiguration()

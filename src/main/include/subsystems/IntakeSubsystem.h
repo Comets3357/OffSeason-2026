@@ -1,5 +1,6 @@
 #pragma once
 #include <frc2/command/SubsystemBase.h>
+#include <thrifty/canEncoder/CanEncoder.h>
 #include "wrappers/NovaBase.h"
 #include <units/angle.h>
 
@@ -13,12 +14,12 @@ public:
     void IntakeRoller(double percent);
 
     //Set angle of intake
-    void SetAngle(units::degree_t angle);
+    void SetAngle(units::turn_t angle);
 
     //sets speed
     void SetSpeed(double percent);
 
-    //Gets angle of intake
+    //Gets angle of intake in turns
     double GetAngle();
     double GetTargetAngle();
 
@@ -31,6 +32,7 @@ public:
 private:
     NovaMotor fuelDeploy{11};
     NovaMotor fuelIntake{12};
+    thrifty::CanEncoder intakeEncoder{0, 51}; //CAN bus 0, encoder ID 51
     double targetAngle = 0.0; 
     bool deployState = false;
     bool rollerState = false;

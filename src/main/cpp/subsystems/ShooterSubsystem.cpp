@@ -6,11 +6,11 @@
 #include <frc/DriverStation.h>
 
 constexpr double SHOOTER_PITCH_CONVERSION = (1.0/20.0) * (15.0/9.0);
-constexpr double SHOOTER_OFFSET = 10; //DEGREES
-constexpr double SHOOTER_FORWARD_LIMIT = 450;
-constexpr double SHOOTER_REVERSE_LIMIT = 10;
+constexpr double SHOOTER_OFFSET = 10.0 / 360.0; //turns
+constexpr double SHOOTER_FORWARD_LIMIT = 450.0 / 360.0;
+constexpr double SHOOTER_REVERSE_LIMIT = 10.0 / 360.0;
 
-constexpr double PITCH_OFFSET = 10; //DEGREES
+constexpr double PITCH_OFFSET = 10.0 / 360.0; //turns
 
 constexpr frc::Pose2d blueHub{4.625_m, 4.035_m, 0_rad};
 constexpr frc::Pose2d redHub{11.92_m, 4.035_m, 0_rad};
@@ -45,28 +45,28 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
 
     shooterPitchMotor.SetInverted(true);
     shooterPitchMotor.SetCurrentLimit(20);
-    shooterPitchMotor.SetMaxOutput(0.5);
+    shooterPitchMotor.SetMaxOutput(1);
     shooterPitchMotor.SetAbsoluteWrapping(false);
-    shooterPitchMotor.SetAbsoluteConversionFactor(SHOOTER_PITCH_CONVERSION);
-    shooterPitchMotor.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::ABS);
-    shooterPitchMotor.SetForwardSoftLimit(20_deg);
-    shooterPitchMotor.SetReverseSoftLimit(5.5_deg);
+    shooterPitchMotor.SetAbsoluteConversionFactor(1);
+    shooterPitchMotor.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::INTERNAL);
+    shooterPitchMotor.SetForwardSoftLimit(units::angle::turn_t{14.5});
+    shooterPitchMotor.SetReverseSoftLimit(units::angle::turn_t{0});
     shooterPitchMotor.EnableForwardSoftLimit(true);
     shooterPitchMotor.SetPID(pitchP, pitchI, pitchD, 0, 0);
     shooterPitchMotor.Set(0);
     shooterPitchMotor.ApplyConfiguration();
 
     frc::SmartDashboard::PutNumber("Smart Dashboard Flywheel Velocity", 0);
-    frc::SmartDashboard::PutNumber("Smart Dashboard Shooter Pitch", 25);
+    frc::SmartDashboard::PutNumber("Smart Dashboard Shooter Pitch (turns)", 25.0 / 360.0);
     frc::SmartDashboard::PutNumber("Smart Dashboard Flywheel Compensation", 0);
-    frc::SmartDashboard::PutNumber("Smart Dashboard Yaw Compensation", 0);
+    frc::SmartDashboard::PutNumber("Smart Dashboard Yaw Compensation (turns)", 0);
 
     shooterLookup.Init();
 }
 
 void ShooterSubsystem::Periodic() {
-    frc::SmartDashboard::PutNumber("Shooter Pitch", getHoodPitch());
-    frc::SmartDashboard::PutNumber("Shooter Yaw", getHoodYaw());
+    frc::SmartDashboard::PutNumber("Shooter Pitch (turns)", getHoodPitch());
+    frc::SmartDashboard::PutNumber("Shooter Yaw (turns)", getHoodYaw());
     frc::SmartDashboard::PutNumber("Secondary Flywheel Current", secondaryFlywheelMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Third Flywheel Current", thirdFlywheelMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Flywheel Velocity", primaryFlywheelMotor.getVelocity().value());
@@ -105,9 +105,9 @@ void ShooterSubsystem::setHoodPitchVelocity(double speed) {
     shooterPitchMotor.Set(speed);
 }
 
-void ShooterSubsystem::setHoodPitch(units::degree_t angle) {
-    double target = std::clamp(angle.value() - PITCH_OFFSET, 5.5, 19.5);
-    shooterPitchMotor.SetAbsolutePosition(units::degree_t{target});
+void ShooterSubsystem::setHoodPitch(units::turn_t angle) {
+    double target = std::clamp(angle.value() - PITCH_OFFSET, 5.5 / 360.0, 19.5 / 360.0);
+    shooterPitchMotor.SetAbsolutePosition(units::turn_t{target});
 }
 
 double ShooterSubsystem::getHoodPitchVelocity() {
@@ -125,7 +125,7 @@ double ShooterSubsystem::getSecondaryFlywheelRPM() {
 
 //returns the current position of the shooter's hood
 double ShooterSubsystem::getHoodPitch() {
-    return shooterPitchMotor.getAbsolutePosition().value() + PITCH_OFFSET;
+    return units::turn_t{shooterPitchMotor.getAbsolutePosition()}.value() + PITCH_OFFSET;
 }
 
 //returns the angle of the shooter's goal hood position
@@ -152,12 +152,12 @@ double ShooterSubsystem::getSmartDashboardSpeed() {
     return frc::SmartDashboard::GetNumber("Shooter Flywheel Speed", 0);
 }
 
-units::degree_t ShooterSubsystem::getSDTargetPitch() {
-    return units::degree_t{frc::SmartDashboard::GetNumber("Smart Dashboard Shooter Pitch", 25)};
+units::turn_t ShooterSubsystem::getSDTargetPitch() {
+    return units::turn_t{frc::SmartDashboard::GetNumber("Smart Dashboard Shooter Pitch (turns)", 25.0 / 360.0)};
 }
 
-units::degree_t ShooterSubsystem::getSDTargetYaw() {
-    return units::degree_t{frc::SmartDashboard::GetNumber("Smart Dashboard Shooter Yaw", 0)};
+units::turn_t ShooterSubsystem::getSDTargetYaw() {
+    return units::turn_t{frc::SmartDashboard::GetNumber("Smart Dashboard Shooter Yaw (turns)", 0)};
 }
 
 void ShooterSubsystem::changeOperatorFlywheelCompensation(double value) {
@@ -250,7 +250,7 @@ frc::Pose2d ShooterSubsystem::getSetPoints(char side) {
 //calculates the trajectory of the fuel to the hub
 //@param robotPose Pose2d of the robot or the shooter, TODO probably add transformations to the robotpose
 //@param alliance Char to designate which alliance's hub to aim at, TODO probably change to enum
-//@returns struct containing yaw and pitch angle in radians.
+//@returns struct containing yaw and pitch angle in turns.
 ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectory(frc::Pose2d targetPose) {
 
     //instantiating the shooting parameters to return.
@@ -331,17 +331,17 @@ ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectory(frc::Pose
     //calculating the yaw angle with atan adjustment and accounting for gyro heading
     double yawRadians = (std::atan2(aimY, aimX) - gyroHeading);
 
-      //once we have done all our radian computations, we convert into degrees to output to our shooter
-    double yawDegrees = yawRadians * (180 / 3.14159) + 180;
+      //once we have done all our radian computations, we convert into turns to output to our shooter
+    double yawTurns = yawRadians / (2.0 * 3.14159) + 0.5;
 
-    double cotermPlus = yawDegrees + 360;
-    double cotermMinus = yawDegrees - 360;
+    double cotermPlus = yawTurns + 1;
+    double cotermMinus = yawTurns - 1;
     double previousShooterYaw = getHoodYaw();
 
 
     double candidates[3] = {
         cotermPlus,
-        yawDegrees,
+        yawTurns,
         cotermMinus
     };
 
@@ -351,28 +351,28 @@ ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectory(frc::Pose
 
     for (int i = 0; i < 3; i++) {
         if (isYawWithinRange(candidates[i])) {
-            yawDegrees = candidates[i];
+            yawTurns = candidates[i];
             break;
         }
     }
 
     //use our lookup tables to establsh our final values.
-    params.pitchAngle = units::degree_t{shooterLookup.calculateHoodAngle(adjustedTotalDistance)};
+    params.pitchAngle = units::turn_t{shooterLookup.calculateHoodAngle(adjustedTotalDistance) / 360.0};
 
-    params.yawAngle = units::degree_t{yawDegrees + shooterLookup.calculateAngleComp(adjustedTotalDistance) * 
-                      shooterLookup.calculateAngleComp(units::degree_t{yawDegrees})};
+    params.yawAngle = units::turn_t{yawTurns + shooterLookup.calculateAngleComp(adjustedTotalDistance) / 360.0 *
+                      shooterLookup.calculateAngleComp(units::turn_t{yawTurns})};
 
     params.flywheelRpm = units::revolutions_per_minute_t{shooterLookup.calculateFlywheelVelocity(adjustedTotalDistance) * 
-                         shooterLookup.calculateVelocityScalarComp(units::degree_t{yawDegrees})};
+                         shooterLookup.calculateVelocityScalarComp(units::turn_t{yawTurns})};
         
     params.flywheelRpm += units::revolutions_per_minute_t{getOperatorFlywheelCompensation()};
 
     //some data we can export
-    frc::SmartDashboard::PutNumber("Target Yaw Angle", params.yawAngle.value());
-    frc::SmartDashboard::PutNumber("Target Pitch Angle", params.pitchAngle.value());
+    frc::SmartDashboard::PutNumber("Target Yaw Angle (turns)", params.yawAngle.value());
+    frc::SmartDashboard::PutNumber("Target Pitch Angle (turns)", params.pitchAngle.value());
     frc::SmartDashboard::PutNumber("Target Flywheel Velocity", params.flywheelRpm.value());
     frc::SmartDashboard::PutNumber("Target Distance", unadjustedTotalDistance.value());
-    frc::SmartDashboard::PutNumber("Yaw Compensation", shooterLookup.calculateAngleComp(adjustedTotalDistance));
+    frc::SmartDashboard::PutNumber("Yaw Compensation (degrees)", shooterLookup.calculateAngleComp(adjustedTotalDistance));
     frc::SmartDashboard::PutNumber("Velocity Compensation", shooterLookup.calculateVelocityComp(adjustedTotalDistance));
     frc::SmartDashboard::PutNumber("Turret X", turretPose.X().value());
     frc::SmartDashboard::PutNumber("Turret Y", turretPose.Y().value());
@@ -392,7 +392,7 @@ ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectory(frc::Pose
 //calculates the trajectory of the fuel to the hub
 //@param robotPose Pose2d of the robot or the shooter, TODO probably add transformations to the robotpose
 //@param alliance Char to designate which alliance's hub to aim at, TODO probably change to enum
-//@returns struct containing yaw and pitch angle in radians.
+//@returns struct containing yaw and pitch angle in turns.
 ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectory(frc::Pose2d targetPose, bool debug) {
     if (!debug) return calculateTrajectory(targetPose);
 
@@ -413,16 +413,16 @@ ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectory(frc::Pose
 
 
     //calculating the yaw angle with atan adjustment and accounting for gyro heading
-    double tempYawAngle = std::atan2(dy, dx) * (180.0 / 3.14159) - m_drive.GetGyroHeading().Degrees().value() + 180.0;
+    double tempYawAngle = std::atan2(dy, dx) / (2.0 * 3.14159) - units::turn_t{m_drive.GetGyroHeading().Radians()}.value() + 0.5;
     
     //spin causes some difference between where the shooter is pointing, and the actual output,
     //so we need to add an adjustment lookup table as a sinusoid, because only specific angles alter the yaw
-    tempYawAngle -= frc::SmartDashboard::GetNumber("Smart Dashboard Yaw Compensation", 0) 
-        * std::cos((tempYawAngle) * 3.14159 / 180.0);
+    tempYawAngle -= frc::SmartDashboard::GetNumber("Smart Dashboard Yaw Compensation (turns)", 0)
+        * std::cos(tempYawAngle * 2.0 * 3.14159);
 
     
-    double cotermPlus = tempYawAngle + 360;
-    double cotermMinus = tempYawAngle - 360;
+    double cotermPlus = tempYawAngle + 1;
+    double cotermMinus = tempYawAngle - 1;
     double previousShooterYaw = getHoodYaw();
 
 
@@ -443,14 +443,14 @@ ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectory(frc::Pose
         }
     }
     
-    params.yawAngle = units::degree_t{tempYawAngle};
+    params.yawAngle = units::turn_t{tempYawAngle};
 
     //calculating pitch angle
-    params.pitchAngle = units::degree_t{frc::SmartDashboard::GetNumber("Smart Dashboard Shooter Pitch", 0)};
+    params.pitchAngle = units::turn_t{frc::SmartDashboard::GetNumber("Smart Dashboard Shooter Pitch (turns)", 0)};
 
     // add a constant to our flywheel speed because our HSL puts extra spin on the ball that we need to account for.
     params.flywheelRpm = units::revolutions_per_minute_t{frc::SmartDashboard::GetNumber("Smart Dashboard Flywheel Velocity", 0) + 
-        frc::SmartDashboard::GetNumber("Smart Dashboard Flywheel Compensation", 0) * std::sin(params.yawAngle.value() * 3.14159 / 180.0)};
+        frc::SmartDashboard::GetNumber("Smart Dashboard Flywheel Compensation", 0) * std::sin(params.yawAngle.value() * 2.0 * 3.14159)};
 
     return params;
 }
@@ -531,45 +531,45 @@ ShooterSubsystem::shootingParams ShooterSubsystem::calculateTrajectorySetpoints(
     //calculating the yaw angle with atan adjustment and accounting for gyro heading
     double yawRadians = (std::atan2(aimY, aimX) - gyroHeading);
 
-      //once we have done all our radian computations, we convert into degrees to output to our shooter
-    double yawDegrees = yawRadians * (180 / 3.14159) + 180;
+      //once we have done all our radian computations, we convert into turns to output to our shooter
+    double yawTurns = yawRadians / (2.0 * 3.14159) + 0.5;
     
     //spin causes some difference between where the shooter is pointing, and the actual output,
     //so we need to add an adjustment lookup table as a sinusoid, because only specific arcs alter the yaw
-    yawDegrees += shooterLookup.calculateAngleComp(adjustedTotalDistance) * std::cos(yawRadians);
+    yawTurns += shooterLookup.calculateAngleComp(adjustedTotalDistance) / 360.0 * std::cos(yawRadians);
 
     //calculating pitch angle
-    params.pitchAngle = units::degree_t{shooterLookup.calculateHoodAngle(adjustedTotalDistance)};
+    params.pitchAngle = units::turn_t{shooterLookup.calculateHoodAngle(adjustedTotalDistance) / 360.0};
 
 
     //If target yaw angle is coterminal, set the target to it.
-    if (isYawWithinRange(yawDegrees - 360.0)) {
-        params.yawAngle = units::degree_t{yawDegrees} - 360_deg;
-    } else if (isYawWithinRange(yawDegrees + 360.0)) {
-        params.yawAngle = units::degree_t{yawDegrees} + 360_deg;
+    if (isYawWithinRange(yawTurns - 1.0)) {
+        params.yawAngle = units::turn_t{yawTurns} - units::turn_t{1};
+    } else if (isYawWithinRange(yawTurns + 1.0)) {
+        params.yawAngle = units::turn_t{yawTurns} + units::turn_t{1};
     } else {
-        params.yawAngle = units::degree_t{yawDegrees};
+        params.yawAngle = units::turn_t{yawTurns};
     }
 
-    if (yawDegrees > 0 && yawDegrees < 180) {
+    if (yawTurns > 0 && yawTurns < 0.5) {
         // add a constant to our flywheel speed because our HSL puts extra spin on the ball that we need to account for.
         params.flywheelRpm = units::revolutions_per_minute_t{shooterLookup.calculateFlywheelVelocity(adjustedTotalDistance) + 
-        shooterLookup.calculateVelocityComp(adjustedTotalDistance) * std::sin(params.yawAngle.value() * 3.14159 / 180.0)};
+        shooterLookup.calculateVelocityComp(adjustedTotalDistance) * std::sin(params.yawAngle.value() * 2.0 * 3.14159)};
 
     } else {
         // add a constant to our flywheel speed because our HSL puts extra spin on the ball that we need to account for.
         params.flywheelRpm = units::revolutions_per_minute_t{shooterLookup.calculateFlywheelVelocity(adjustedTotalDistance) + 
-        shooterLookup.calculateVelocityScalarComp(adjustedTotalDistance) * shooterLookup.calculateVelocityComp(adjustedTotalDistance) * std::sin(params.yawAngle.value() * 3.14159 / 180.0)};
+        shooterLookup.calculateVelocityScalarComp(adjustedTotalDistance) * shooterLookup.calculateVelocityComp(adjustedTotalDistance) * std::sin(params.yawAngle.value() * 2.0 * 3.14159)};
     }
     
     params.flywheelRpm += units::revolutions_per_minute_t{getOperatorFlywheelCompensation()};
 
     //some data we can export
-    frc::SmartDashboard::PutNumber("Target Yaw Angle", params.yawAngle.value());
-    frc::SmartDashboard::PutNumber("Target Pitch Angle", params.pitchAngle.value());
+    frc::SmartDashboard::PutNumber("Target Yaw Angle (turns)", params.yawAngle.value());
+    frc::SmartDashboard::PutNumber("Target Pitch Angle (turns)", params.pitchAngle.value());
     frc::SmartDashboard::PutNumber("Target Flywheel Velocity", params.flywheelRpm.value());
     frc::SmartDashboard::PutNumber("Target Distance", unadjustedTotalDistance.value());
-    frc::SmartDashboard::PutNumber("Yaw Compensation", shooterLookup.calculateAngleComp(adjustedTotalDistance));
+    frc::SmartDashboard::PutNumber("Yaw Compensation (degrees)", shooterLookup.calculateAngleComp(adjustedTotalDistance));
     frc::SmartDashboard::PutNumber("Velocity Compensation", shooterLookup.calculateVelocityComp(adjustedTotalDistance));
     frc::SmartDashboard::PutNumber("Turret X", turretPose.X().value());
     frc::SmartDashboard::PutNumber("Turret Y", turretPose.Y().value());

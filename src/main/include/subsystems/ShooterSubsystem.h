@@ -21,8 +21,8 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         };
 
         struct shootingParams {
-            units::degree_t yawAngle;
-            units::degree_t pitchAngle;
+            units::turn_t yawAngle;
+            units::turn_t pitchAngle;
             units::revolutions_per_minute_t flywheelRpm;
         };
 
@@ -46,8 +46,8 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         void setFlywheelVelocity(double RPMs);
 
 
-        //sets the hood pitch in degrees.
-        void setHoodPitch(units::degree_t pitch);
+        //sets the hood pitch in turns.
+        void setHoodPitch(units::turn_t pitch);
 
 
         //sets the motor that pitches the hood to a certain speed (probably dont use this one unless you know what you're doing.)
@@ -68,7 +68,7 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         //returns the velocity of the hood's pitch motor
         double getHoodPitchVelocity();
 
-        //getters for hood pitch and yaw, aswell as the targets
+        //getters for hood pitch and yaw in turns, aswell as the targets
         double getHoodPitch();
         double getTargetHoodPitch();
         double getHoodYaw();
@@ -78,8 +78,8 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         double getSmartDashboardVelocity();
         double getSmartDashboardSpeed();
 
-        units::degree_t getSDTargetPitch();
-        units::degree_t getSDTargetYaw();
+        units::turn_t getSDTargetPitch();
+        units::turn_t getSDTargetYaw();
 
         bool isYawWithinRange(double angle);
 
@@ -87,7 +87,7 @@ class ShooterSubsystem : public frc2::SubsystemBase {
 
     private:
 
-        const double pitchP = 0.16;
+        const double pitchP = 1;
         const double pitchI = 0;
         const double pitchD = 0;
         

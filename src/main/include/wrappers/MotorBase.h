@@ -101,11 +101,11 @@ public:
     //configuration setter for enabling the reverse soft limit
     virtual void EnableReverseSoftLimit(bool enable) = 0;
 
-    //configuration setter for setting the forward limit position
-    virtual void SetForwardSoftLimit(units::angle::degree_t degrees) = 0;
+    //configuration setter for setting the forward limit in output rotations
+    virtual void SetForwardSoftLimit(units::angle::turn_t rotations) = 0;
 
-    //configuration setter for setting the reverse limit position
-    virtual void SetReverseSoftLimit(units::angle::degree_t degrees) = 0;
+    //configuration setter for setting the reverse limit in output rotations
+    virtual void SetReverseSoftLimit(units::angle::turn_t rotations) = 0;
 
     //apply the configuration of values
     virtual void ApplyConfiguration(MotorConfig motorConfig) = 0;

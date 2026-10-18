@@ -74,11 +74,11 @@ public:
     //configuration setter for enabling the reverse soft limit
     void EnableReverseSoftLimit(bool enable) override;
 
-    //configuration setter for setting the forward limit position
-    void SetForwardSoftLimit(units::angle::degree_t degrees) override;
+    //configuration setter for setting the forward limit in output rotations
+    void SetForwardSoftLimit(units::angle::turn_t rotations) override;
 
-    //configuration setter for setting the reverse limit position
-    void SetReverseSoftLimit(units::angle::degree_t degrees) override;
+    //configuration setter for setting the reverse limit in output rotations
+    void SetReverseSoftLimit(units::angle::turn_t rotations) override;
 
     //apply the configuration of values
     void ApplyConfiguration(MotorConfig motorConfig) override;
@@ -182,11 +182,11 @@ public:
     //configuration setter for enabling the reverse soft limit
     void EnableReverseSoftLimit(bool enable) override;
 
-    //configuration setter for setting the forward limit position
-    void SetForwardSoftLimit(units::angle::degree_t degrees) override;
+    //configuration setter for setting the forward limit in output rotations
+    void SetForwardSoftLimit(units::angle::turn_t rotations) override;
 
-    //configuration setter for setting the reverse limit position
-    void SetReverseSoftLimit(units::angle::degree_t degrees) override;
+    //configuration setter for setting the reverse limit in output rotations
+    void SetReverseSoftLimit(units::angle::turn_t rotations) override;
 
     //apply the configuration of values
     void ApplyConfiguration(MotorConfig motorConfig) override;

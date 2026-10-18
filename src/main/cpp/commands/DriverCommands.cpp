@@ -5,8 +5,8 @@
                                               
 constexpr double driveMult = 0.25;
 
-constexpr units::degree_t INTAKE_DOWN = 100_deg;
-constexpr units::degree_t INTAKE_UP = 15_deg;
+constexpr units::turn_t INTAKE_DOWN{100.0 / 360.0};
+constexpr units::turn_t INTAKE_UP{15.0 / 360.0};
 
 constexpr double ROLLER_SPEED = 0.9;
 
@@ -120,7 +120,7 @@ double shortestRotation(double current, double target) {
     return (delta < -180) ? delta + 360 : delta;
 }
 
-frc2::CommandPtr intakeCommands(IntakeSubsystem* m_intake, units::degree_t deployAngle, double rollerSpeed) {
+frc2::CommandPtr intakeCommands(IntakeSubsystem* m_intake, units::turn_t deployAngle, double rollerSpeed) {
     return frc2::cmd::RunOnce([=] {
         m_intake->SetAngle(deployAngle);
         m_intake->IntakeRoller(rollerSpeed);
@@ -149,7 +149,7 @@ frc2::CommandPtr XLock(DriveSubsystem* m_drive) {
     }, {m_drive});
 }
 
-frc2::CommandPtr setIntakeAngle(IntakeSubsystem* m_intake, units::degree_t onTrueAngle, units::degree_t onFalseAngle) {
+frc2::CommandPtr setIntakeAngle(IntakeSubsystem* m_intake, units::turn_t onTrueAngle, units::turn_t onFalseAngle) {
     return frc2::cmd::RunOnce([=] {
         if (m_intake->getDeployState()) {
             m_intake->SetAngle(onTrueAngle);

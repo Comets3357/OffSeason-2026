@@ -46,6 +46,10 @@ public:
     //sets the motor to a specific position using a specific slot.
     void SetPosition(units::angle::degree_t degree, int slot) override;
 
+    //set the internal encoder's current reading in output degrees, accounting for gearing.
+    //does not send a movement command or change the selected feedback sensor.
+    void SetInternalEncoderPosition(units::angle::degree_t degree);
+
     //setter to set the pid of a specific slot.
     //slots are 0 and 1; gains use Nova native rotations and rotations per second.
     //ff is Nova's native F gain, not REV's kV gain.
@@ -54,6 +58,16 @@ public:
     //sets an absolute encoder position using voltage-based PID, in output degrees.
     //configure the connected encoder type/direction in Thrifty Config first.
     void SetAbsolutePosition(units::angle::degree_t degree, int slot = 0);
+
+    //tune onboard motion profiling; velocity is rotations/sec, acceleration rotations/sec^2.
+    //kV and kA use those units; kS and kG are volts. Uses the matching PID slot.
+    void SetMotionProfile(double maxVelocity, double maxAcceleration,
+                          double kV, double kA, double kS, double kG,
+                          thrifty::Motor::MPGravityType gravityType, int slot = 0);
+
+    //profile an absolute position in degrees, using the paired CAN encoder if present.
+    //requires a 1:1 absolute encoder on the mechanism (conversion factor 1).
+    void SetAbsoluteMotionProfilePosition(units::angle::degree_t degree, int slot = 0);
 
     //gets the absolute encoder position in output degrees.
     units::angle::degree_t getAbsolutePosition();
@@ -111,11 +125,11 @@ public:
     //configuration setter for enabling both soft limits; Nova has one shared switch.
     void EnableReverseSoftLimit(bool enable) override;
 
-    //configuration setter for setting the forward limit position
-    void SetForwardSoftLimit(units::angle::degree_t degrees) override;
+    //configuration setter for setting the forward limit in output rotations
+    void SetForwardSoftLimit(units::angle::turn_t rotations) override;
 
-    //configuration setter for setting the reverse limit position
-    void SetReverseSoftLimit(units::angle::degree_t degrees) override;
+    //configuration setter for setting the reverse limit in output rotations
+    void SetReverseSoftLimit(units::angle::turn_t rotations) override;
 
     //reapply the internal configuration updated by the setters.
     void ApplyConfiguration();

@@ -21,6 +21,13 @@ intake.Set(0.25);
 intake.Stop();
 ```
 
+`SetInternalEncoderPosition(units::angle::degree_t{0})` zeroes the internal
+encoder. Pass any output angle to establish a different reference; the wrapper
+accounts for the position conversion factor. This calls Nova's `SetIntPosition`
+without changing feedback selection or the absolute encoder. It does not send
+a movement command, but an already-active position loop will react to the new
+reading, so establish the reference before starting position control.
+
 ## Dependency and build
 
 This project uses **ThriftyLib 2026.3.0** (including its C++ dependency) and
@@ -29,8 +36,10 @@ Run `./gradlew build --offline` when the dependencies are already cached.
 
 ## Differences from REVBase
 
-- Position commands/readings and soft limits use **output degrees**; velocity uses
-  **output RPM**. Conversion factors are output rotations per motor rotation.
+- Position commands/readings use **output degrees**; velocity uses **output RPM**.
+  Soft-limit setters take **output rotations** (`units::angle::turn_t`); stored
+  config values and limit getters use degrees. Conversion factors are output
+  rotations per motor rotation.
 - Nova supports **PID slots 0 and 1**. Commands without a slot use slot 0.
   Tune PIDF in Nova's native motor rotations and rotations/second; do not copy
   REV gains unchanged. Configure nonzero gains before using closed-loop control.
@@ -98,7 +107,10 @@ Its default is 1.0, preserving the swerve's sensor-degree behavior.
 Shooter pitch uses (1/20)*(15/9). The static shooter has no yaw encoder.
 
 `SetSoftLimitSource(ABS)` makes limits use the absolute encoder and its conversion
-factor. Set both limits before enabling them. Soft-limit source is independent
+factor. `SetForwardSoftLimit` and `SetReverseSoftLimit` take output rotations as
+`units::angle::turn_t`, for example `SetForwardSoftLimit(units::angle::turn_t{0.25})`
+for a 90-degree limit. The configuration struct and limit getters still use degrees.
+Set both limits before enabling them. Soft-limit source is independent
 of the PID feedback source. `SetAbsoluteEncoderInverted(true)` selects Nova's
 counter-clockwise absolute direction; verify that direction on the hardware.
 
@@ -106,7 +118,44 @@ counter-clockwise absolute direction; verify that direction on the hardware.
 native CAN following; the index follower follows CAN ID 22 with inversion.
 `GetOutputCurrent` reports stator amps and `GetAppliedVoltage` reports volts.
 
-## External CAN absolute encoder
+## Motion-profile tuning
+
+`SetMotionProfile(maxVelocity, maxAcceleration, kV, kA, kS, kG, gravityType, slot)`
+configures Nova's onboard profile in slot 0 or 1. Velocity is mechanism rotations
+per second, acceleration is rotations per second squared, kV is V/(rot/s), kA is
+V/(rot/s²), and kS and kG are volts. Configure PID separately with `SetPID` in the
+same slot. These settings do not command movement, and `ApplyConfiguration()`
+does not overwrite them.
+
+`SetAbsoluteMotionProfilePosition(angle, slot)` commands the profile using the
+paired CAN encoder, or the wired absolute encoder when none is paired. This
+method currently requires a direct-mounted 1:1 encoder and an absolute
+conversion factor of 1, matching the intake's encoder 51. It rejects other
+ratios rather than calculating gravity using the wrong arm angle. Existing
+position methods and subsystem behavior are unchanged.
+
+```cpp
+//Example only: replace limits and gains with measured/tuned values.
+//Zero feedforward gains below provide no gravity assistance yet.
+fuelDeploy.SetMotionProfile(0.1, 0.1, 0.0, 0.0, 0.0, 0.0,
+                           thrifty::Motor::MPGravityType::COSINE);
+//When ready, use this instead of SetAbsolutePosition for the desired target:
+fuelDeploy.SetAbsoluteMotionProfilePosition(90_deg);
+```
+
+Tune kG for gravity support and kS for friction, then kV/kA and PID for motion.
+Before enabling cosine gravity, calibrate encoder zero and direction to the
+firmware's arm convention. Thrifty's tuning guide describes zero as vertically
+downward for a non-inverted motor, with the angle/direction relationship reversed
+when inverted. Do not infer this calibration from the intake's travel limits.
+Verify that the installed firmware supports motion profiling with CAN absolute
+feedback; compilation alone cannot verify it. `Stop()` or `Set(0)` exits the
+profile, including its active holding output.
+
+Sources: [Motion-profile setup](https://docs.thethriftybot.com/software/thriftylib/latest/setting-up-motion-profiling),
+[Cosine gravity tuning](https://docs.thethriftybot.com/software/thriftylib/latest/cosine-gravity-tuning).
+
+## External CAN absolute encoder setup
 
 `SetExternalEncoder(encoderId)` pairs a **Thrifty CAN Encoder** on the Nova's bus.
 It accepts IDs 0-62. Pass `thrifty::Motor::kNoCanEncoder` to unpair and return to
