@@ -113,7 +113,7 @@ void ShooterSubsystem::setFlywheelSpeed(double speed) {
 }
 
 void ShooterSubsystem::setFlywheelVelocity(double RPMs) {
-    if (RPMs == 0) {
+    if (!std::isfinite(RPMs) || RPMs == 0) {
         setFlywheelSpeed(0);
         return;
     }

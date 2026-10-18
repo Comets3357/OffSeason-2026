@@ -50,9 +50,9 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
         m_intake->SetAngle(m_intake->getDeployState() ? INTAKE_DOWN : INTAKE_UP);
     }, {m_intake}));
 
-    //Hold left bumper for 50% flywheel output; stop on release or interruption.
+    //Hold left bumper for the dashboard flywheel RPM; stop on release or interruption.
     driverLeftBumper.WhileTrue(frc2::cmd::RunEnd(
-        [=] { m_shooter->setFlywheelSpeed(0.5); },
+        [=] { m_shooter->setFlywheelVelocity(m_shooter->getSmartDashboardVelocity()); },
         [=] { m_shooter->setFlywheelSpeed(0); }, {m_shooter}));
 
     driverRightBumper.OnTrue(runIntakeRoller(m_intake, ROLLER_SPEED));

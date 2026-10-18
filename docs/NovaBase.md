@@ -96,8 +96,11 @@ The static shooter's flywheel motors are CAN IDs 31, 32, and 33. Each receives
 its own output command; firmware following is not used for the flywheels.
 Motors 31 and 32 are non-inverted, and motor 33 is inverted. All three use a
 60 A stator limit and disabled voltage compensation. Holding the driver's
-left bumper commands each motor to 50% duty cycle; release or command
-interruption commands all three to zero.
+left bumper commands each motor to the RPM entered in `Smart Dashboard Flywheel
+Velocity` (default 0), reading updates while held. Release or command interruption
+commands all three to zero. `Flywheel P`, `Flywheel I`, `Flywheel D`, and
+`Flywheel FF` tune PID slot 0 on all three motors; changed finite values are
+applied from `Periodic()`. Dashboard gains reset to the code defaults on startup.
 Pitch is CAN ID 41, with its existing configuration and methods preserved.
 There is no yaw motor or yaw motor control.
 
