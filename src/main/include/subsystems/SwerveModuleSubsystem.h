@@ -18,6 +18,7 @@
             
             frc::SwerveModuleState GetDesiredState();
             void SetDesiredState(const frc::SwerveModuleState &desiredState);
+            void Stop();
             void ResetEncoders(); 
             double getInternalPosition();
             void FlipEncoder(); 

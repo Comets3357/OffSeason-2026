@@ -102,6 +102,12 @@ void SwerveModule::SetDesiredState(
     m_steerMotor.SetAbsolutePosition(units::degree_t{targetRotations});
 }
 
+void SwerveModule::Stop() {
+    m_driveMotor.Set(0);
+    m_steerMotor.Set(0);
+    correctedDesiredState.speed = 0_mps;
+}
+
 frc::SwerveModuleState SwerveModule::GetDesiredState() {
     //get the member variable of the desired state of the module
     return correctedDesiredState;

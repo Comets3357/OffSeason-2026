@@ -55,6 +55,9 @@ public:
         // Points the modules into an X pattern with zero speed so the robot resists being pushed.
         void SetX();
 
+        //Sets all drive and azimuth motors to zero percent output.
+        void Stop();
+
         // Forces the pose estimator, gyro angle, and sim pose if applicable to a known field pose.
         void ResetOdometry(frc::Pose2d pose);
 

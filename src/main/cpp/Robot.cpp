@@ -27,7 +27,9 @@ void Robot::RobotPeriodic() {
  */
 void Robot::DisabledInit() {}
 
-void Robot::DisabledPeriodic() {}
+void Robot::DisabledPeriodic() {
+  m_container.m_drive.Stop();
+}
 
 /**
  * This autonomous runs the autonomous command selected by your {@link

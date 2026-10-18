@@ -199,6 +199,15 @@ void DriveSubsystem::Periodic()
 
 }
 
+void DriveSubsystem::Stop()
+{
+    m_frontLeft.Stop();
+    m_frontRight.Stop();
+    m_rearLeft.Stop();
+    m_rearRight.Stop();
+    m_lastCommandedRobotRelativeSpeeds = frc::ChassisSpeeds{0_mps, 0_mps, 0_rad_per_s};
+}
+
 void DriveSubsystem::SimulationPeriodic()
 {
     // WPILib calls SimulationPeriodic every 20 ms in normal desktop sim.
