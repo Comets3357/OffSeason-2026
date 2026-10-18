@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 #include "wrappers/REVBase.h"
 
 #include <frc/kinematics/SwerveModuleState.h>
@@ -21,6 +23,7 @@
             void FlipEncoder(); 
             double GetVelocity();
             void SimulationPeriodic();
+            void UpdateDashboard(const std::string& name);
 
             double GetRelativePosition();
         private:

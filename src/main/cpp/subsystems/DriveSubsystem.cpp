@@ -165,6 +165,11 @@ void DriveSubsystem::DriveFromChassisSpeeds(frc::ChassisSpeeds speed, bool field
 
 void DriveSubsystem::Periodic()
 {
+    m_frontLeft.UpdateDashboard("Front Left");
+    m_frontRight.UpdateDashboard("Front Right");
+    m_rearLeft.UpdateDashboard("Rear Left");
+    m_rearRight.UpdateDashboard("Rear Right");
+
     //put all swerve module states into a states array
     states[0] = m_frontLeft.GetState();
     states[1] = m_frontRight.GetState();

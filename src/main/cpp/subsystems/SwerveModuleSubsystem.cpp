@@ -1,6 +1,7 @@
 #include "subsystems/SwerveModuleSubsystem.h"
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <numbers>
+#include <cmath>
 
 #include <units/current.h>
 
@@ -104,6 +105,19 @@ void SwerveModule::SetDesiredState(
 frc::SwerveModuleState SwerveModule::GetDesiredState() {
     //get the member variable of the desired state of the module
     return correctedDesiredState;
+}
+
+void SwerveModule::UpdateDashboard(const std::string& name) {
+    auto actual = GetState();
+    //Use robot-relative angles for both values, including the optimized target.
+    auto requestedAngle = correctedDesiredState.angle - offset;
+    std::string key = "Swerve/" + name;
+    frc::SmartDashboard::PutNumber(key + "/Actual Angle (turns)",
+        std::remainder(units::turn_t{actual.angle.Radians()}.value(), 1.0));
+    frc::SmartDashboard::PutNumber(key + "/Requested Angle (turns)",
+        std::remainder(units::turn_t{requestedAngle.Radians()}.value(), 1.0));
+    frc::SmartDashboard::PutNumber(key + "/Actual Speed (mps)", actual.speed.value());
+    frc::SmartDashboard::PutNumber(key + "/Requested Speed (mps)", correctedDesiredState.speed.value());
 }
 
 double SwerveModule::GetVelocity() {
