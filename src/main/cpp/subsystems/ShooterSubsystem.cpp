@@ -57,6 +57,10 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
     shooterPitchMotor.ApplyConfiguration();
 
     frc::SmartDashboard::PutNumber("Smart Dashboard Flywheel Velocity", 0);
+    frc::SmartDashboard::PutNumber("Flywheel P", flywheelP);
+    frc::SmartDashboard::PutNumber("Flywheel I", flywheelI);
+    frc::SmartDashboard::PutNumber("Flywheel D", flywheelD);
+    frc::SmartDashboard::PutNumber("Flywheel FF", flywheelFF);
     frc::SmartDashboard::PutNumber("Smart Dashboard Shooter Pitch (turns)", 25.0 / 360.0);
     frc::SmartDashboard::PutNumber("Smart Dashboard Flywheel Compensation", 0);
     frc::SmartDashboard::PutNumber("Smart Dashboard Yaw Compensation (turns)", 0);
@@ -65,6 +69,23 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
 }
 
 void ShooterSubsystem::Periodic() {
+    double p = frc::SmartDashboard::GetNumber("Flywheel P", flywheelP);
+    double i = frc::SmartDashboard::GetNumber("Flywheel I", flywheelI);
+    double d = frc::SmartDashboard::GetNumber("Flywheel D", flywheelD);
+    double ff = frc::SmartDashboard::GetNumber("Flywheel FF", flywheelFF);
+
+    //Only send configurations when a gain changes, and ignore invalid numbers.
+    if (std::isfinite(p) && std::isfinite(i) && std::isfinite(d) && std::isfinite(ff) &&
+        (p != flywheelP || i != flywheelI || d != flywheelD || ff != flywheelFF)) {
+        flywheelP = p;
+        flywheelI = i;
+        flywheelD = d;
+        flywheelFF = ff;
+        primaryFlywheelMotor.SetPID(p, i, d, ff, 0);
+        secondaryFlywheelMotor.SetPID(p, i, d, ff, 0);
+        thirdFlywheelMotor.SetPID(p, i, d, ff, 0);
+    }
+
     frc::SmartDashboard::PutNumber("Shooter Pitch (turns)", getHoodPitch());
     frc::SmartDashboard::PutNumber("Shooter Yaw (turns)", getHoodYaw());
     frc::SmartDashboard::PutNumber("Secondary Flywheel Current", secondaryFlywheelMotor.GetOutputCurrent());

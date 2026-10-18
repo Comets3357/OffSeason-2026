@@ -91,10 +91,10 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         const double pitchI = 0;
         const double pitchD = 0;
         
-        const double flywheelP = 0.004;
-        const double flywheelI = 0.0;
-        const double flywheelD = 0.018;
-        const double flywheelFF = 0.0042;
+        double flywheelP = 0.004;
+        double flywheelI = 0.0;
+        double flywheelD = 0.018;
+        double flywheelFF = 0.0042;
         
         const frc::Transform2d robotRelativeTurretTransform{
             frc::Translation2d{-5.5_in, -9.5_in}, // translation relative to robot center
