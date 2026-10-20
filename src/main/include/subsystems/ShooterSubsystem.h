@@ -1,126 +1,58 @@
 #pragma once
 
 #include <frc/geometry/Pose2d.h>
-#include <frc/kinematics/ChassisSpeeds.h>
 #include <frc2/command/SubsystemBase.h>
-#include "subsystems/DriveSubsystem.h"
-#include "subsystems/VisionSubsystem.h"
+#include <units/angle.h>
+#include <units/angular_velocity.h>
+#include <units/length.h>
+
 #include "common/ShooterLookup.h"
 #include "wrappers/NovaBase.h"
 
+class DriveSubsystem;
+
 class ShooterSubsystem : public frc2::SubsystemBase {
-    public:
-        ShooterSubsystem(DriveSubsystem& drive, VisionSubsystem& vision);
+public:
+    explicit ShooterSubsystem(DriveSubsystem& drive);
 
-        void Periodic() override;
-        void SimulationPeriodic() override;
+    void Periodic() override;
+    void SimulationPeriodic() override;
 
-        enum Hub {
-            blue, 
-            red
-        };
+    void setFlywheelSpeed(double percent);
+    void setFlywheelVelocity(double rpm);
+    double getSmartDashboardVelocity();
 
-        struct shootingParams {
-            units::turn_t yawAngle;
-            units::turn_t pitchAngle;
-            units::revolutions_per_minute_t flywheelRpm;
-        };
+    // Motor turns measured upward from down: 0 = down, 18.5 = up.
+    void setHoodPitch(units::turn_t position);
+    void setHoodFromDashboard();
+    double getHoodPitch();
 
-        shootingParams calculateTrajectory(frc::Pose2d targetPose);
-        shootingParams calculateTrajectory(frc::Pose2d targetPose, bool debug);
+    // Lookup angles are physical degrees, not hood motor positions.
+    struct ShotSetpoints {
+        units::degree_t hoodAngle;
+        units::revolutions_per_minute_t flywheelRpm;
+    };
+    ShotSetpoints calculateShot(units::meter_t distance);
+    ShotSetpoints calculateTrajectory(frc::Pose2d targetPose);
+    frc::Pose2d getTargetPose();
 
-        frc::Pose2d getTargetPose();
-        frc::Pose2d getSetPoints(char side);
+private:
+    void updateFlywheelGains();
 
-        void resetOperatorFlywheelCompensation();
-        void changeOperatorFlywheelCompensation(double value);
-        double getOperatorFlywheelCompensation();
+    static constexpr double kHoodDownRawTurns = 18.5;
+    static constexpr double kHoodUpRawTurns = 37.0;
+    static constexpr double kHoodTravelTurns = kHoodUpRawTurns - kHoodDownRawTurns;
 
+    DriveSubsystem& m_drive;
+    ShooterLookup shooterLookup;
+    NovaMotor primaryFlywheelMotor{31};
+    NovaMotor secondaryFlywheelMotor{32};
+    NovaMotor thirdFlywheelMotor{33};
+    NovaMotor shooterPitchMotor{41};
 
-        //setters
-
-        //sets all flywheels to a duty cycle from -1 to 1 with individual motor commands.
-        void setFlywheelSpeed(double percent);
-
-
-        void setFlywheelVelocity(double RPMs);
-
-
-        // Sets hood position in motor turns increasing upward (down = 0), clamped to soft limits.
-        void setHoodPitch(units::turn_t pitch);
-
-        // Apply the dashboard target using the same upward-increasing coordinates.
-        void setHoodFromDashboard();
-
-
-        //sets the motor that pitches the hood to a certain speed (probably dont use this one unless you know what you're doing.)
-        void setHoodPitchVelocity(double speed);
-
-        //getters
-
-        //returns the velocity of the primary flywheel.
-        double getPrimaryFlywheelRPM();
-
-        //returns the velocity of the secondary flywheel.
-        double getSecondaryFlywheelRPM();
-        
-
-        //maybe we would want to merge these together to return a struct or something?
-
-
-        //returns the velocity of the hood's pitch motor
-        double getHoodPitchVelocity();
-
-        //getters for hood pitch and yaw in turns, aswell as the targets
-        double getHoodPitch();
-        double getTargetHoodPitch();
-        double getHoodYaw();
-        double getTargetHoodYaw();
-
-
-        double getSmartDashboardVelocity();
-        double getSmartDashboardSpeed();
-
-        units::turn_t getSDTargetPitch();
-        units::turn_t getSDTargetYaw();
-
-        bool isYawWithinRange(double angle);
-
-        shootingParams calculateTrajectorySetpoints(frc::Pose2d targetPose, frc::Pose2d robotPose);
-
-    private:
-
-        double targetHoodMotorTurns = 0.0;
-
-        const double pitchP = 1;
-        const double pitchI = 0;
-        const double pitchD = 0;
-        
-        double flywheelP = 0.004;
-        double flywheelI = 0.0;
-        double flywheelD = 0.018;
-        double flywheelFF = 0.0042;
-        
-        const frc::Transform2d robotRelativeTurretTransform{
-            frc::Translation2d{-5.5_in, -9.5_in}, // translation relative to robot center
-            frc::Rotation2d{}                   // no rotation change
-        };
-        double phaseDelay = 0.06; // seconds of delay in sensor values, can be tuned, 6328 uses 0.03
-
-        VisionSubsystem& m_vision;
-        DriveSubsystem& m_drive;
-
-        static constexpr int kPrimaryFlywheelId = 31;
-        NovaMotor primaryFlywheelMotor{kPrimaryFlywheelId};
-        NovaMotor secondaryFlywheelMotor{32};
-        NovaMotor thirdFlywheelMotor{33};
-        NovaMotor shooterPitchMotor{41};
-        
-        double flywheelOperatorOffset = 0;
-        double HSLRpmOffsetConstant = 50; /*THIS NEEDS TO BE TUNEDDDDDDDDDDD :) */
-        static constexpr int kPitchEncoderId = 0;
-        static constexpr double kPitchMotorTurnsPerEncoderTurn = 8.0;
-        thrifty::CanEncoder shooterEncoder{0, kPitchEncoderId}; //CAN bus 0, encoder ID 0
-
-        ShooterLookup shooterLookup{};
+    double targetHoodMotorTurns = 0.0;
+    double flywheelP = 0.004;
+    double flywheelI = 0.0;
+    double flywheelD = 0.018;
+    double flywheelFF = 0.0042;
 };

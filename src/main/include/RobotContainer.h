@@ -21,7 +21,7 @@ class RobotContainer {
   IndexSubsystem m_index;
   VisionSubsystem m_vision;
   DriveSubsystem m_drive;
-  ShooterSubsystem m_shooter{m_drive, m_vision};
+  ShooterSubsystem m_shooter{m_drive};
 
  private:
 
