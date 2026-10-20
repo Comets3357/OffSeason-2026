@@ -116,6 +116,7 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         
         double flywheelOperatorOffset = 0;
         double HSLRpmOffsetConstant = 50; /*THIS NEEDS TO BE TUNEDDDDDDDDDDD :) */
+        thrifty::CanEncoder shooterEncoder{0, 0}; //CAN bus 0, encoder ID 51
 
         ShooterLookup shooterLookup{};
 };

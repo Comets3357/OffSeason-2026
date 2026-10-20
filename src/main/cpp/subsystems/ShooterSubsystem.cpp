@@ -56,7 +56,9 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
     shooterPitchMotor.SetForwardSoftLimit(units::angle::turn_t{HOOD_MAX_MOTOR_TURNS});
     shooterPitchMotor.SetReverseSoftLimit(units::angle::turn_t{HOOD_MIN_MOTOR_TURNS});
     shooterPitchMotor.EnableForwardSoftLimit(true);
+    shooterPitchMotor.EnableReverseSoftLimit(true);
     shooterPitchMotor.SetPID(pitchP, pitchI, pitchD, 0, 0);
+    shooterPitchMotor.SetInternalEncoderPosition(units::turn_t{shooterEncoder.Status().GetPositionAbs() * 8});
     shooterPitchMotor.Set(0);
     shooterPitchMotor.ApplyConfiguration();
 
