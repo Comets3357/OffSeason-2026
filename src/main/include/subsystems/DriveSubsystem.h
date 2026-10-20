@@ -138,11 +138,12 @@ private:
         //fallback pose if the current estimated pose does not work
         frc::Pose2d fallbackPose;
 
-        //instantiates the swerve modules using motor Ids and offsets.
-        SwerveModule m_frontLeft {kFrontLeftTurningCanId,  kFrontLeftDrivingCanId,  kFrontLeftChassisAngularOffset,  false};
-        SwerveModule m_frontRight{kFrontRightTurningCanId, kFrontRightDrivingCanId, kFrontRightChassisAngularOffset, false};
-        SwerveModule m_rearLeft  {kRearLeftTurningCanId,   kRearLeftDrivingCanId,   kRearLeftChassisAngularOffset,   false};
-        SwerveModule m_rearRight {kRearRightTurningCanId,  kRearRightDrivingCanId,  kRearRightChassisAngularOffset,  false};
+        // Arguments after the offset: steering encoder inversion, drive motor inversion.
+        // Rear modules need opposite drive and azimuth directions from the front modules.
+        SwerveModule m_frontLeft {kFrontLeftTurningCanId,  kFrontLeftDrivingCanId,  kFrontLeftChassisAngularOffset,  false, true};
+        SwerveModule m_frontRight{kFrontRightTurningCanId, kFrontRightDrivingCanId, kFrontRightChassisAngularOffset, false, true};
+        SwerveModule m_rearLeft  {kRearLeftTurningCanId,   kRearLeftDrivingCanId,   kRearLeftChassisAngularOffset,   true,  false};
+        SwerveModule m_rearRight {kRearRightTurningCanId,  kRearRightDrivingCanId,  kRearRightChassisAngularOffset,  true,  false};
 
         //helpers to turn desired moving in the swerve drive into individual
         //module states for each module to get a targeted angle and speed.

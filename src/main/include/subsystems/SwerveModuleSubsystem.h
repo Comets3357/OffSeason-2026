@@ -11,7 +11,8 @@
     class SwerveModule
     {
         public:
-            SwerveModule(int steer_id, int drive_id, double offset, bool steerEncoderInverted = false);
+            SwerveModule(int steer_id, int drive_id, double offset,
+                         bool steerEncoderInverted = false, bool driveMotorInverted = true);
 
             frc::SwerveModuleState GetState();
             frc::SwerveModulePosition GetPosition();

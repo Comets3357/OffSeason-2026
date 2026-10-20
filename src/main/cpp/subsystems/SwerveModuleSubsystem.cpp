@@ -25,7 +25,8 @@ constexpr double steerI = 0.0;
 constexpr double steerD = 0.0;
 
 
-SwerveModule::SwerveModule(int steerId, int driveId, double offset, bool steerEncoderInverted)
+SwerveModule::SwerveModule(int steerId, int driveId, double offset,
+                         bool steerEncoderInverted, bool driveMotorInverted)
     : m_driveMotor{driveId},
       m_steerMotor{steerId, thrifty::Motor::MINION},
       offset{frc::Rotation2d{units::degree_t{offset}}},
@@ -42,7 +43,7 @@ SwerveModule::SwerveModule(int steerId, int driveId, double offset, bool steerEn
     //the REV wrapper takes a MotorConfig and reports degrees and RPM.
     MotorBase::MotorConfig driveConfig;
     driveConfig.currentLimitAmps = driveCurrentLimit.value();
-    driveConfig.inverted = true;
+    driveConfig.inverted = driveMotorInverted;
     driveConfig.enableVoltageCompensation = true;
     driveConfig.voltageCompensation = 12.0;
     m_driveMotor.ApplyConfiguration(driveConfig);
