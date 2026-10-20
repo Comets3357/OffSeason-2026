@@ -46,7 +46,7 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         void setFlywheelVelocity(double RPMs);
 
 
-        //sets the hood pitch in turns.
+        // Sets hood position in internal motor turns, clamped to controller soft limits.
         void setHoodPitch(units::turn_t pitch);
 
         // Apply the dashboard target in internal motor turns, clamped to the soft limits.
@@ -90,6 +90,8 @@ class ShooterSubsystem : public frc2::SubsystemBase {
 
     private:
 
+        double targetHoodMotorTurns = 0.0;
+
         const double pitchP = 1;
         const double pitchI = 0;
         const double pitchD = 0;
@@ -116,7 +118,9 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         
         double flywheelOperatorOffset = 0;
         double HSLRpmOffsetConstant = 50; /*THIS NEEDS TO BE TUNEDDDDDDDDDDD :) */
-        thrifty::CanEncoder shooterEncoder{0, 0}; //CAN bus 0, encoder ID 51
+        static constexpr int kPitchEncoderId = 0;
+        static constexpr double kPitchMotorTurnsPerEncoderTurn = 8.0;
+        thrifty::CanEncoder shooterEncoder{0, kPitchEncoderId}; //CAN bus 0, encoder ID 0
 
         ShooterLookup shooterLookup{};
 };

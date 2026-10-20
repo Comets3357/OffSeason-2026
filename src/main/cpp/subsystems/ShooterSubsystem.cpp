@@ -49,6 +49,7 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
 
     shooterPitchMotor.SetInverted(true);
     shooterPitchMotor.SetCurrentLimit(20);
+    shooterPitchMotor.SetExternalEncoder(kPitchEncoderId);
     shooterPitchMotor.SetMaxOutput(1);
     shooterPitchMotor.SetAbsoluteWrapping(false);
     shooterPitchMotor.SetAbsoluteConversionFactor(1);
@@ -58,7 +59,9 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
     shooterPitchMotor.EnableForwardSoftLimit(true);
     shooterPitchMotor.EnableReverseSoftLimit(true);
     shooterPitchMotor.SetPID(pitchP, pitchI, pitchD, 0, 0);
-    shooterPitchMotor.SetInternalEncoderPosition(units::turn_t{shooterEncoder.Status().GetPositionAbs() * 8});
+    // Seed internal motor rotations from the CAN encoder, as intake deploy does.
+    shooterPitchMotor.SetInternalEncoderPosition(units::turn_t{
+        shooterEncoder.Status().GetPositionAbs() * kPitchMotorTurnsPerEncoderTurn});
     shooterPitchMotor.Set(0);
     shooterPitchMotor.ApplyConfiguration();
 
@@ -96,6 +99,11 @@ void ShooterSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Shooter Pitch (turns)", getHoodPitch());
     frc::SmartDashboard::PutNumber("Hood Position (motor turns)",
         units::turn_t{shooterPitchMotor.getPosition()}.value());
+    frc::SmartDashboard::PutNumber("Hood Applied Target (motor turns)", targetHoodMotorTurns);
+    frc::SmartDashboard::PutNumber("Hood Position Error (motor turns)",
+        targetHoodMotorTurns - units::turn_t{shooterPitchMotor.getPosition()}.value());
+    frc::SmartDashboard::PutNumber("Hood Applied Voltage", shooterPitchMotor.GetAppliedVoltage());
+    frc::SmartDashboard::PutNumber("Hood Current (amps)", shooterPitchMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Shooter Yaw (turns)", getHoodYaw());
     frc::SmartDashboard::PutNumber("Secondary Flywheel Current", secondaryFlywheelMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Third Flywheel Current", thirdFlywheelMotor.GetOutputCurrent());
@@ -136,19 +144,19 @@ void ShooterSubsystem::setHoodPitchVelocity(double speed) {
 }
 
 void ShooterSubsystem::setHoodPitch(units::turn_t angle) {
-    double target = std::clamp(angle.value() - PITCH_OFFSET, 5.5 / 360.0, 19.5 / 360.0);
-    shooterPitchMotor.SetAbsolutePosition(units::turn_t{target});
+    if (!std::isfinite(angle.value())) return;
+    // Match IntakeSubsystem::SetAngle: internal motor turns and controller soft limits.
+    const double minimum = units::turn_t{shooterPitchMotor.getReverseLimit()}.value();
+    const double maximum = units::turn_t{shooterPitchMotor.getForwardLimit()}.value();
+    if (!std::isfinite(minimum) || !std::isfinite(maximum) || minimum >= maximum) return;
+    targetHoodMotorTurns = std::clamp(angle.value(), minimum, maximum);
+    shooterPitchMotor.SetPosition(units::turn_t{targetHoodMotorTurns});
 }
 
 void ShooterSubsystem::setHoodFromDashboard() {
     const double requested = frc::SmartDashboard::GetNumber(
         "Hood Target (motor turns)", HOOD_DEFAULT_MOTOR_TURNS);
-    if (!std::isfinite(requested)) return;
-
-    const double target = std::clamp(requested, HOOD_MIN_MOTOR_TURNS, HOOD_MAX_MOTOR_TURNS);
-    // Use the same internal encoder coordinates as the hardware soft limits.
-    shooterPitchMotor.SetPosition(units::degree_t{units::turn_t{target}});
-    frc::SmartDashboard::PutNumber("Hood Applied Target (motor turns)", target);
+    setHoodPitch(units::turn_t{requested});
 }
 
 double ShooterSubsystem::getHoodPitchVelocity() {
