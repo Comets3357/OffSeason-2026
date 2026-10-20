@@ -10,6 +10,7 @@ constexpr double SHOOTER_OFFSET = 10.0 / 360.0; //turns
 constexpr double SHOOTER_FORWARD_LIMIT = 450.0 / 360.0;
 constexpr double SHOOTER_REVERSE_LIMIT = 10.0 / 360.0;
 
+constexpr double PITCH_OFFSET = 10.0 / 360.0; //turns
 constexpr double HOOD_MIN_MOTOR_TURNS = 0.0;
 constexpr double HOOD_MAX_MOTOR_TURNS = 18.5;
 constexpr double HOOD_DEFAULT_MOTOR_TURNS =
