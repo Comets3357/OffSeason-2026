@@ -43,11 +43,12 @@ namespace DriveConstants
     constexpr units::meter_t kWheelBase =
         19_in; // Distance between centers of front and back wheels on robot
 
-    // Angular offsets of the modules relative to the chassis in radians
-    constexpr double kFrontLeftChassisAngularOffset = -90;
+    // Angular offsets in degrees, in each module's software steering coordinates.
+    // Negate the offset when reversing steering coordinates to preserve forward zero.
+    constexpr double kFrontLeftChassisAngularOffset = 90;
     constexpr double kFrontRightChassisAngularOffset = 0;
     constexpr double kRearLeftChassisAngularOffset = 180;
-    constexpr double kRearRightChassisAngularOffset = 90;
+    constexpr double kRearRightChassisAngularOffset = -90;
 
     // SPARK MAX CAN IDs
     constexpr int kFrontLeftDrivingCanId = 1;
