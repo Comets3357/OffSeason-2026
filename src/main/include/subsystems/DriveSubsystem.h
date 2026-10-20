@@ -139,11 +139,11 @@ private:
         frc::Pose2d fallbackPose;
 
         // Arguments after the offset: steering encoder inversion, drive motor inversion.
-        // Left modules reverse steering coordinates; rear modules reverse drive polarity.
+        // Direction settings are calibrated per module for forward and left translation.
         SwerveModule m_frontLeft {kFrontLeftTurningCanId,  kFrontLeftDrivingCanId,  kFrontLeftChassisAngularOffset,  true,  true};
-        SwerveModule m_frontRight{kFrontRightTurningCanId, kFrontRightDrivingCanId, kFrontRightChassisAngularOffset, false, true};
+        SwerveModule m_frontRight{kFrontRightTurningCanId, kFrontRightDrivingCanId, kFrontRightChassisAngularOffset, true,  false};
         SwerveModule m_rearLeft  {kRearLeftTurningCanId,   kRearLeftDrivingCanId,   kRearLeftChassisAngularOffset,   true,  false};
-        SwerveModule m_rearRight {kRearRightTurningCanId,  kRearRightDrivingCanId,  kRearRightChassisAngularOffset,  false, false};
+        SwerveModule m_rearRight {kRearRightTurningCanId,  kRearRightDrivingCanId,  kRearRightChassisAngularOffset,  false, true};
 
         //helpers to turn desired moving in the swerve drive into individual
         //module states for each module to get a targeted angle and speed.
