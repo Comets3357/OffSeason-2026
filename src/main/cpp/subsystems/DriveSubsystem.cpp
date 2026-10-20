@@ -387,13 +387,13 @@ void DriveSubsystem::Drive(units::meters_per_second_t xSpeed,
             DriveConstants::kMaxAngularSpeed.value())};
 
     //if the robot is within teleop, lock the wheels if we are under a certain speed
-    if (frc::DriverStation::IsTeleop() &&
-        units::math::abs(xSpeed) < 0.02_mps &&
-        units::math::abs(ySpeed) < 0.02_mps &&
-        units::math::abs(limitedRot) < 0.02_rad_per_s) {
-            SetX();
-            return;
-    }
+    // if (frc::DriverStation::IsTeleop() &&
+    //     units::math::abs(xSpeed) < 0.02_mps &&
+    //     units::math::abs(ySpeed) < 0.02_mps &&
+    //     units::math::abs(limitedRot) < 0.02_rad_per_s) {
+    //         SetX();
+    //         return;
+    // }
 
     const frc::ChassisSpeeds rawCommandedSpeeds =
         fieldRelative

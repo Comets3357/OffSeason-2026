@@ -20,7 +20,7 @@ constexpr double driveI = 0.0;
 constexpr double driveD = 0.0;
 constexpr double driveFF = 0.0004;
 
-constexpr double steerP = 20.0;
+constexpr double steerP = 4;
 constexpr double steerI = 0.0;
 constexpr double steerD = 0.0;
 

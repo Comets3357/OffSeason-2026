@@ -5,8 +5,8 @@
                                               
 constexpr double driveMult = 0.25;
 
-constexpr units::turn_t INTAKE_DOWN{100.0 / 360.0};
-constexpr units::turn_t INTAKE_UP{15.0 / 360.0};
+constexpr units::turn_t INTAKE_DOWN{40};
+constexpr units::turn_t INTAKE_UP{1};
 
 constexpr double ROLLER_SPEED = 0.9;
 
@@ -29,20 +29,20 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
     driverStart.OnTrue(frc2::cmd::RunOnce([=] {m_drive->ZeroHeading();}, {m_drive}).IgnoringDisable(true)); 
 
     //Apply deadband to joystick input before scaling into physical speeds.
-    // m_drive->SetDefaultCommand(frc2::cmd::Run(
-    //     [=] {
-    //         const double speedMultiplier = driveShootMult(m_index)();
-    //         const double translationSign = m_drive->IsBlueAlliance() ? -1.0 : 1.0;
-    //         m_drive->Drive(
-    //             frc::ApplyDeadband(m_driverController->GetLeftY(), OIConstants::kDriveDeadband) *
-    //                 translationSign * speedMultiplier * DriveConstants::kMaxSpeed,
-    //             frc::ApplyDeadband(m_driverController->GetLeftX(), OIConstants::kDriveDeadband) *
-    //                 translationSign * speedMultiplier * DriveConstants::kMaxSpeed,
-    //             -frc::ApplyDeadband(m_driverController->GetRightX(), OIConstants::kDriveDeadband) *
-    //                 speedMultiplier * DriveConstants::kMaxAngularSpeed,
-    //             true);
-    //     }, {m_drive}
-    // ));
+    m_drive->SetDefaultCommand(frc2::cmd::Run(
+        [=] {
+            const double speedMultiplier = driveShootMult(m_index)();
+            const double translationSign = m_drive->IsBlueAlliance() ? -1.0 : 1.0;
+            m_drive->Drive(
+                frc::ApplyDeadband(m_driverController->GetLeftY(), OIConstants::kDriveDeadband) *
+                    translationSign * speedMultiplier * DriveConstants::kMaxSpeed,
+                frc::ApplyDeadband(m_driverController->GetLeftX(), OIConstants::kDriveDeadband) *
+                    translationSign * speedMultiplier * DriveConstants::kMaxSpeed,
+                -frc::ApplyDeadband(m_driverController->GetRightX(), OIConstants::kDriveDeadband) *
+                    speedMultiplier * DriveConstants::kMaxAngularSpeed,
+                true);
+        }, {m_drive}
+    ));
 
     //Toggle first, then command the matching angle in the same scheduled action.
     driverRightTrigger.OnTrue(frc2::cmd::RunOnce([=] {

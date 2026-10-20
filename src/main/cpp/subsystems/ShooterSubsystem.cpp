@@ -49,7 +49,7 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& m_drive, VisionSubsystem& m_v
     shooterPitchMotor.SetAbsoluteWrapping(false);
     shooterPitchMotor.SetAbsoluteConversionFactor(1);
     shooterPitchMotor.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::INTERNAL);
-    shooterPitchMotor.SetForwardSoftLimit(units::angle::turn_t{14.5});
+    shooterPitchMotor.SetForwardSoftLimit(units::angle::turn_t{18.5});
     shooterPitchMotor.SetReverseSoftLimit(units::angle::turn_t{0});
     shooterPitchMotor.EnableForwardSoftLimit(true);
     shooterPitchMotor.SetPID(pitchP, pitchI, pitchD, 0, 0);

@@ -5,7 +5,7 @@
 
 
 IndexSubsystem::IndexSubsystem() {
-    HopperMotor.SetInverted(false);
+    HopperMotor.SetInverted(true);
     HopperMotor.SetCurrentLimit(40);
     HopperMotor.SetVoltageCompensation(9.5);
     HopperMotor.ApplyConfiguration();
