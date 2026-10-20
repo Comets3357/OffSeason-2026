@@ -49,6 +49,9 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         //sets the hood pitch in turns.
         void setHoodPitch(units::turn_t pitch);
 
+        // Apply the dashboard target in internal motor turns, clamped to the soft limits.
+        void setHoodFromDashboard();
+
 
         //sets the motor that pitches the hood to a certain speed (probably dont use this one unless you know what you're doing.)
         void setHoodPitchVelocity(double speed);

@@ -15,6 +15,7 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
 
     frc2::Trigger driverStart = m_driverController->Start();
     frc2::Trigger driverLeftBumper = m_driverController->LeftBumper();
+    frc2::Trigger driverLeftTrigger = m_driverController->LeftTrigger();
     frc2::Trigger driverRightTrigger = m_driverController->RightTrigger();
     frc2::Trigger driverRightBumper = m_driverController->RightBumper();
     frc2::Trigger driverX = m_driverController->X();
@@ -50,9 +51,14 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
         m_intake->SetAngle(m_intake->getDeployState() ? INTAKE_DOWN : INTAKE_UP);
     }, {m_intake}));
 
-    //Hold left bumper for the dashboard flywheel RPM; stop on release or interruption.
-    driverLeftBumper.WhileTrue(frc2::cmd::RunEnd(
-        [=] { m_shooter->setFlywheelVelocity(m_shooter->getSmartDashboardVelocity()); },
+    //Share the shooter requirement so hood and flywheel controls can run together.
+    //Hold left trigger to update the hood target; its controller holds position on release.
+    (driverLeftBumper || driverLeftTrigger).WhileTrue(frc2::cmd::RunEnd(
+        [=] {
+            if (driverLeftTrigger.Get()) m_shooter->setHoodFromDashboard();
+            m_shooter->setFlywheelVelocity(
+                driverLeftBumper.Get() ? m_shooter->getSmartDashboardVelocity() : 0.0);
+        },
         [=] { m_shooter->setFlywheelSpeed(0); }, {m_shooter}));
 
     driverRightBumper.OnTrue(runIntakeRoller(m_intake, ROLLER_SPEED));
