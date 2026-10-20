@@ -46,10 +46,10 @@ class ShooterSubsystem : public frc2::SubsystemBase {
         void setFlywheelVelocity(double RPMs);
 
 
-        // Sets hood position in internal motor turns, clamped to controller soft limits.
+        // Sets hood position in motor turns increasing upward (down = 0), clamped to soft limits.
         void setHoodPitch(units::turn_t pitch);
 
-        // Apply the dashboard target in internal motor turns, clamped to the soft limits.
+        // Apply the dashboard target using the same upward-increasing coordinates.
         void setHoodFromDashboard();
 
 

@@ -13,6 +13,8 @@ constexpr double SHOOTER_REVERSE_LIMIT = 10.0 / 360.0;
 constexpr double PITCH_OFFSET = 10.0 / 360.0; //turns
 constexpr double HOOD_MIN_MOTOR_TURNS = 0.0;
 constexpr double HOOD_MAX_MOTOR_TURNS = 18.5;
+// User coordinates increase upward; the controller's internal encoder increases downward.
+constexpr double HOOD_POSITION_SUM = HOOD_MIN_MOTOR_TURNS + HOOD_MAX_MOTOR_TURNS;
 constexpr double HOOD_DEFAULT_MOTOR_TURNS =
     (HOOD_MIN_MOTOR_TURNS + HOOD_MAX_MOTOR_TURNS) / 2.0;
 
@@ -97,11 +99,13 @@ void ShooterSubsystem::Periodic() {
     }
 
     frc::SmartDashboard::PutNumber("Shooter Pitch (turns)", getHoodPitch());
-    frc::SmartDashboard::PutNumber("Hood Position (motor turns)",
-        units::turn_t{shooterPitchMotor.getPosition()}.value());
+    const double rawHoodPosition = units::turn_t{shooterPitchMotor.getPosition()}.value();
+    const double hoodPosition = HOOD_POSITION_SUM - rawHoodPosition;
+    frc::SmartDashboard::PutNumber("Hood Raw Internal Position (motor turns)", rawHoodPosition);
+    frc::SmartDashboard::PutNumber("Hood Position (motor turns)", hoodPosition);
     frc::SmartDashboard::PutNumber("Hood Applied Target (motor turns)", targetHoodMotorTurns);
     frc::SmartDashboard::PutNumber("Hood Position Error (motor turns)",
-        targetHoodMotorTurns - units::turn_t{shooterPitchMotor.getPosition()}.value());
+        targetHoodMotorTurns - hoodPosition);
     frc::SmartDashboard::PutNumber("Hood Applied Voltage", shooterPitchMotor.GetAppliedVoltage());
     frc::SmartDashboard::PutNumber("Hood Current (amps)", shooterPitchMotor.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Shooter Yaw (turns)", getHoodYaw());
@@ -145,12 +149,13 @@ void ShooterSubsystem::setHoodPitchVelocity(double speed) {
 
 void ShooterSubsystem::setHoodPitch(units::turn_t angle) {
     if (!std::isfinite(angle.value())) return;
-    // Match IntakeSubsystem::SetAngle: internal motor turns and controller soft limits.
+    // Convert the upward-increasing target to native encoder coordinates, then clamp.
     const double minimum = units::turn_t{shooterPitchMotor.getReverseLimit()}.value();
     const double maximum = units::turn_t{shooterPitchMotor.getForwardLimit()}.value();
     if (!std::isfinite(minimum) || !std::isfinite(maximum) || minimum >= maximum) return;
-    targetHoodMotorTurns = std::clamp(angle.value(), minimum, maximum);
-    shooterPitchMotor.SetPosition(units::turn_t{targetHoodMotorTurns});
+    const double nativeTarget = std::clamp(HOOD_POSITION_SUM - angle.value(), minimum, maximum);
+    targetHoodMotorTurns = HOOD_POSITION_SUM - nativeTarget;
+    shooterPitchMotor.SetPosition(units::turn_t{nativeTarget});
 }
 
 void ShooterSubsystem::setHoodFromDashboard() {
