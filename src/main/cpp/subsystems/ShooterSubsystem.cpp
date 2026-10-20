@@ -10,7 +10,6 @@ constexpr double SHOOTER_OFFSET = 10.0 / 360.0; //turns
 constexpr double SHOOTER_FORWARD_LIMIT = 450.0 / 360.0;
 constexpr double SHOOTER_REVERSE_LIMIT = 10.0 / 360.0;
 
-constexpr double PITCH_OFFSET = 10.0 / 360.0; //turns
 constexpr double HOOD_MIN_MOTOR_TURNS = 0.0;
 constexpr double HOOD_MAX_MOTOR_TURNS = 18.5;
 constexpr double HOOD_DEFAULT_MOTOR_TURNS =
@@ -166,7 +165,7 @@ double ShooterSubsystem::getSecondaryFlywheelRPM() {
 
 //returns the current position of the shooter's hood
 double ShooterSubsystem::getHoodPitch() {
-    return units::turn_t{shooterPitchMotor.getAbsolutePosition()}.value() + PITCH_OFFSET;
+    return units::turn_t{shooterPitchMotor.getAbsolutePosition()}.value();
 }
 
 //returns the angle of the shooter's goal hood position
