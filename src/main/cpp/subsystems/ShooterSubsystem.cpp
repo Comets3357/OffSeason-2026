@@ -22,8 +22,8 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& drive) : m_drive(drive) {
     shooterPitchMotor.SetCurrentLimit(20);
     shooterPitchMotor.SetInverted(false);
     shooterPitchMotor.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::INTERNAL);
-    shooterPitchMotor.SetForwardSoftLimit(units::turn_t{kHoodUpRawTurns});
-    shooterPitchMotor.SetReverseSoftLimit(units::turn_t{kHoodDownRawTurns});
+    shooterPitchMotor.SetForwardSoftLimit(units::turn_t{kHoodMaxTurns});
+    shooterPitchMotor.SetReverseSoftLimit(units::turn_t{kHoodMinTurns});
     shooterPitchMotor.EnableForwardSoftLimit(true); // Nova enables both limits together.
     shooterPitchMotor.SetMaxOutput(1);
     shooterPitchMotor.Set(0);
@@ -37,7 +37,7 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& drive) : m_drive(drive) {
     frc::SmartDashboard::PutNumber("Flywheel I", flywheelI);
     frc::SmartDashboard::PutNumber("Flywheel D", flywheelD);
     frc::SmartDashboard::PutNumber("Flywheel FF", flywheelFF);
-    frc::SmartDashboard::PutNumber("Hood Target (motor turns)", kHoodTravelTurns / 2.0);
+    frc::SmartDashboard::PutNumber("Hood Target (motor turns)", kHoodDefaultTurns);
 }
 
 void ShooterSubsystem::Periodic() {
@@ -92,14 +92,13 @@ double ShooterSubsystem::getSmartDashboardVelocity() {
 
 void ShooterSubsystem::setHoodPitch(units::turn_t position) {
     if (!std::isfinite(position.value())) return;
-    targetHoodMotorTurns = std::clamp(position.value(), 0.0, kHoodTravelTurns);
-    // Dashboard zero is fully down; native encoder position increases upward.
-    shooterPitchMotor.SetPosition(units::turn_t{kHoodDownRawTurns + targetHoodMotorTurns});
+    targetHoodMotorTurns = std::clamp(position.value(), kHoodMinTurns, kHoodMaxTurns);
+    shooterPitchMotor.SetPosition(units::turn_t{targetHoodMotorTurns});
 }
 
 void ShooterSubsystem::setHoodFromDashboard() {
     setHoodPitch(units::turn_t{frc::SmartDashboard::GetNumber(
-        "Hood Target (motor turns)", kHoodTravelTurns / 2.0)});
+        "Hood Target (motor turns)", kHoodDefaultTurns)});
 }
 
 double ShooterSubsystem::getHoodPitch() {

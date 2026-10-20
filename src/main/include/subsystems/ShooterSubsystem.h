@@ -22,7 +22,7 @@ public:
     void setFlywheelVelocity(double rpm);
     double getSmartDashboardVelocity();
 
-    // Motor turns measured upward from down: 0 = down, 18.5 = up.
+    // Native internal encoder turns, clamped to 0–18.5 with no offset.
     void setHoodPitch(units::turn_t position);
     void setHoodFromDashboard();
     double getHoodPitch();
@@ -39,9 +39,9 @@ public:
 private:
     void updateFlywheelGains();
 
-    static constexpr double kHoodDownRawTurns = 18.5;
-    static constexpr double kHoodUpRawTurns = 37.0;
-    static constexpr double kHoodTravelTurns = kHoodUpRawTurns - kHoodDownRawTurns;
+    static constexpr double kHoodMinTurns = 0.0;
+    static constexpr double kHoodMaxTurns = 18.5;
+    static constexpr double kHoodDefaultTurns = (kHoodMinTurns + kHoodMaxTurns) / 2.0;
 
     DriveSubsystem& m_drive;
     ShooterLookup shooterLookup;
