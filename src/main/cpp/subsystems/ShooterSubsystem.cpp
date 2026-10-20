@@ -27,7 +27,7 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& drive) : m_drive(drive) {
     shooterPitchMotor.EnableForwardSoftLimit(true); // Nova enables both limits together.
     shooterPitchMotor.SetMaxOutput(1);
     shooterPitchMotor.Set(0);
-    shooterPitchMotor.SetPID(1, 0, 0, 0, 0);
+    shooterPitchMotor.SetPID(2, 0, 0, 0, 0);
     shooterPitchMotor.ApplyConfiguration();
     targetHoodMotorTurns = getHoodPitch();
 
@@ -48,6 +48,13 @@ void ShooterSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Hood Raw Internal Position (motor turns)",
         units::turn_t{shooterPitchMotor.getPosition()}.value());
     frc::SmartDashboard::PutNumber("Hood Applied Target (motor turns)", targetHoodMotorTurns);
+    // Read back the controller's settings rather than displaying our requested constants.
+    frc::SmartDashboard::PutBoolean("Hood Controller Soft Limits Enabled",
+        shooterPitchMotor.isForwardSoftLimitEnabled());
+    frc::SmartDashboard::PutNumber("Hood Controller Forward Limit (motor turns)",
+        units::turn_t{shooterPitchMotor.getForwardLimit()}.value());
+    frc::SmartDashboard::PutNumber("Hood Controller Reverse Limit (motor turns)",
+        units::turn_t{shooterPitchMotor.getReverseLimit()}.value());
     frc::SmartDashboard::PutNumber("Hood Position Error (motor turns)", targetHoodMotorTurns - position);
     frc::SmartDashboard::PutNumber("Hood Applied Voltage", shooterPitchMotor.GetAppliedVoltage());
     frc::SmartDashboard::PutNumber("Hood Current (amps)", shooterPitchMotor.GetOutputCurrent());
