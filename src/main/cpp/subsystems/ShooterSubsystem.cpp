@@ -20,7 +20,7 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& drive) : m_drive(drive) {
 
     // Use the existing internal encoder position for control and soft limits.
     shooterPitchMotor.SetCurrentLimit(20);
-    shooterPitchMotor.SetInverted(true);
+    shooterPitchMotor.SetInverted(false);
     shooterPitchMotor.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::INTERNAL);
     shooterPitchMotor.SetForwardSoftLimit(units::turn_t{kHoodMaxTurns});
     shooterPitchMotor.SetReverseSoftLimit(units::turn_t{kHoodMinTurns});

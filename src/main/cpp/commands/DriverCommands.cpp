@@ -57,7 +57,7 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
     //Hold left bumper for hood pitch; hold left trigger for flywheel RPM.
     (driverLeftBumper || driverLeftTrigger).WhileTrue(frc2::cmd::RunEnd(
         [=] {
-            if (driverLeftBumper.Get()) m_shooter->setHoodFromDashboard();
+            // if (driverLeftBumper.Get()) m_shooter->setHoodFromDashboard();
             m_shooter->setFlywheelVelocity(
                 driverLeftTrigger.Get() ? m_shooter->getSmartDashboardVelocity() : 0.0);
         },
