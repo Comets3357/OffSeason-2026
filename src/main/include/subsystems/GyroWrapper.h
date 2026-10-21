@@ -13,6 +13,7 @@ class GyroWrapper
     public: 
 
         GyroWrapper(); 
+        void UpdateDashboard();
         
         //makes whatever angle the robot is currently facing the '0' degree position.
         void ZeroGyro(); 

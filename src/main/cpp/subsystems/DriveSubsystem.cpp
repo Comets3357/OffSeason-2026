@@ -157,7 +157,7 @@ void DriveSubsystem::DriveFromChassisSpeeds(frc::ChassisSpeeds speed, bool field
     const frc::ChassisSpeeds fieldSpeeds =
         fieldRelative
             ? speed
-            : frc::ChassisSpeeds::FromRobotRelativeSpeeds(speed, GetGyroHeading());
+            : frc::ChassisSpeeds::FromRobotRelativeSpeeds(speed, GetEstimatedPose().Rotation());
     frc::SmartDashboard::PutNumber("Commanded Field speeds X", fieldSpeeds.vx.value());
     frc::SmartDashboard::PutNumber("Commanded Field speeds Y", fieldSpeeds.vy.value());
 
@@ -165,6 +165,7 @@ void DriveSubsystem::DriveFromChassisSpeeds(frc::ChassisSpeeds speed, bool field
 
 void DriveSubsystem::Periodic()
 {
+    m_gyro.UpdateDashboard();
     m_frontLeft.UpdateDashboard("Front Left");
     m_frontRight.UpdateDashboard("Front Right");
     m_rearLeft.UpdateDashboard("Rear Left");
@@ -176,26 +177,17 @@ void DriveSubsystem::Periodic()
     states[2] = m_rearLeft.GetState();
     states[3] = m_rearRight.GetState();
 
-    //put separate position and angle states into our double_states array
-    std::array<double, 8> double_states;
-
-    double_states[0] = states[0].angle.Degrees().value();
-    double_states[1] = states[0].speed.value();
-    double_states[2] = states[1].angle.Degrees().value();
-    double_states[3] = states[1].speed.value();
-    double_states[4] = states[2].angle.Degrees().value();
-    double_states[5] = states[2].speed.value();
-    double_states[6] = states[3].angle.Degrees().value();
-    double_states[7] = states[3].speed.value();
-
-    // Wrap all double state angles to 0-360
-    for (int i=0; i < 7; i += 2) {
-        double_states[i] = WrapAngle(double_states[i]);
-    }
-
-    //repeatedly calculates our poseEstimator
+    m_vision.setGyroData(GetEstimatedPose().Rotation());
     PoseEstimation();
-    m_vision.setGyroData(GetGyroHeading());
+
+    const auto pose = GetEstimatedPose();
+    const auto measured = GetRobotRelativeSpeeds();
+    frc::SmartDashboard::PutNumber("Drive/Field Heading (deg)", pose.Rotation().Degrees().value());
+    frc::SmartDashboard::PutNumber("Drive/Gyro Heading (deg)", GetGyroHeading().Degrees().value());
+    frc::SmartDashboard::PutNumber("Drive/Pose X (m)", pose.X().value());
+    frc::SmartDashboard::PutNumber("Drive/Pose Y (m)", pose.Y().value());
+    frc::SmartDashboard::PutNumber("Drive/Measured Forward (mps)", measured.vx.value());
+    frc::SmartDashboard::PutNumber("Drive/Measured Left (mps)", measured.vy.value());
 
 }
 
@@ -333,20 +325,7 @@ void DriveSubsystem::PoseEstimation() {
         }
     }
 
-    //keep the robot inside the field, but only reset if the pose is outside the bounds.
-    const double min = DriveConstants::kWheelBase.value() / 2;
-    const double maxX = 16.5 - min;
-    const double maxY = 8.0 - min;
-    const auto pose = m_poseEstimator.GetEstimatedPosition();
-
-    if (pose.X().value() < min || pose.X().value() > maxX ||
-        pose.Y().value() < min || pose.Y().value() > maxY) {
-        m_poseEstimator.ResetPose(frc::Pose2d{
-            units::meter_t{std::clamp(pose.X().value(), min, maxX)},
-            units::meter_t{std::clamp(pose.Y().value(), min, maxY)},
-            pose.Rotation()});
-    }
-
+    // Preserve the measured pose; clamping it would erase motion near field boundaries.
     //sets the fields in advantageScope to the current estimated position
     m_field.SetRobotPose(m_poseEstimator.GetEstimatedPosition());
     m_mirrorField.SetRobotPose(m_poseEstimator.GetEstimatedPosition().RotateAround(frc::Translation2d{8.774176_m, 4.0259_m}, frc::Rotation2d{180_deg})); 
@@ -398,7 +377,7 @@ void DriveSubsystem::Drive(units::meters_per_second_t xSpeed,
     const frc::ChassisSpeeds rawCommandedSpeeds =
         fieldRelative
             ? frc::ChassisSpeeds::FromFieldRelativeSpeeds(
-                  xSpeed, ySpeed, limitedRot, GetGyroHeading())
+                  xSpeed, ySpeed, limitedRot, GetEstimatedPose().Rotation())
             : frc::ChassisSpeeds{xSpeed, ySpeed, limitedRot};
 
     // The simple sim integrates the desired continuous chassis motion directly.
@@ -452,13 +431,10 @@ void DriveSubsystem::ResetEncoders()
 
 void DriveSubsystem::ZeroHeading() 
 { 
-    //zeroes the position of the gyro
-    if (frc::RobotBase::IsSimulation()) {
-        ResetOdometry(frc::Pose2d{GetEstimatedPose().Translation(), frc::Rotation2d{}});
-        return;
-    }
-
-    m_gyro.ZeroGyro();
+    // Start establishes the current orientation as away from our alliance wall.
+    // Reset gyro and odometry together so controls and the displayed pose agree.
+    const frc::Rotation2d forwardHeading{IsBlueAlliance() ? 0_deg : 180_deg};
+    ResetOdometry(frc::Pose2d{GetEstimatedPose().Translation(), forwardHeading});
 }
 
 frc::ChassisSpeeds DriveSubsystem::GetRobotRelativeSpeeds()
@@ -525,6 +501,7 @@ void DriveSubsystem::ResetOdometry(frc::Pose2d pose) {
         {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
          m_rearLeft.GetPosition(), m_rearRight.GetPosition()},
         pose);
+    m_field.SetRobotPose(pose);
 }
 
 //goes to a given pose on the field via the targetPosition that you want to go to, as well as the max output of the motors

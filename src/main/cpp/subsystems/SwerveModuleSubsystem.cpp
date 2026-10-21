@@ -1,16 +1,18 @@
 #include "subsystems/SwerveModuleSubsystem.h"
+#include "Constants.h"
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <numbers>
 #include <cmath>
 
 #include <units/current.h>
 
-constexpr double DRIVE_GEAR_RATIO = 5.54;
+constexpr double DRIVE_GEAR_RATIO = ModuleConstants::kDrivingMotorReduction;
 constexpr double DRIVE_WHEEL_DIAMETER = 0.1016; // 4 inch = 0.1016 m
-constexpr double DRIVE_WHEEL_WEAR = -0.00065598; // Negative if greater than nominal diameter
+constexpr double DRIVE_METERS_PER_MOTOR_TURN =
+    std::numbers::pi * DRIVE_WHEEL_DIAMETER / DRIVE_GEAR_RATIO;
 
-constexpr double RPM_TO_MPS = (1.0/60.0) /*minutes to seconds*/ * (1.0 / 3.13297132071) /*meter to wheel rotations*/ * (1 / 5.54); /*one wheel rotation to drive motor rotations*/
-constexpr double MPS_TO_RPM = (1.0) /*Meters per second*/ * (60.0/1.0) /*Seconds to Minute*/ * (3.13297132071/1.0) /*Wheel Rotations to Meter*/ * (5.54 / 1); /*Drive motor rotations to one wheel rotation*/
+constexpr double RPM_TO_MPS = DRIVE_METERS_PER_MOTOR_TURN / 60.0;
+constexpr double MPS_TO_RPM = 1.0 / RPM_TO_MPS;
 
 constexpr units::current::ampere_t steerCurrentLimit = 25_A;
 constexpr units::current::ampere_t driveCurrentLimit = 60_A;
@@ -123,6 +125,7 @@ void SwerveModule::UpdateDashboard(const std::string& name) {
         std::remainder(units::turn_t{actual.angle.Radians()}.value(), 1.0));
     frc::SmartDashboard::PutNumber(key + "/Requested Angle (turns)",
         std::remainder(units::turn_t{requestedAngle.Radians()}.value(), 1.0));
+    frc::SmartDashboard::PutNumber(key + "/Distance (m)", GetPosition().distance.value());
     frc::SmartDashboard::PutNumber(key + "/Actual Speed (mps)", actual.speed.value());
     frc::SmartDashboard::PutNumber(key + "/Requested Speed (mps)", correctedDesiredState.speed.value());
 }
@@ -139,7 +142,7 @@ void SwerveModule::SimulationPeriodic() {
 
 frc::SwerveModulePosition SwerveModule::GetPosition() {
     //gets the position of the swerve module via calculating the amount the module has traveled
-    frc::SwerveModulePosition position = {units::meter_t{(GetRelativePosition() / DRIVE_GEAR_RATIO) * std::numbers::pi * DRIVE_WHEEL_DIAMETER},
+    frc::SwerveModulePosition position = {units::meter_t{GetRelativePosition() * DRIVE_METERS_PER_MOTOR_TURN},
         units::degree_t{GetSteerRotations() * 360.0} - offset.Degrees()};
 
     return position;

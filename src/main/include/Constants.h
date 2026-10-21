@@ -102,7 +102,7 @@ namespace ModuleConstants
 
     // 45 teeth on the wheel's bevel gear, 22 teeth on the first-stage spur gear, 15
     // teeth on the bevel pinion
-    constexpr double kDrivingMotorReduction = 6.23;
+    constexpr double kDrivingMotorReduction = 5.54;
 
     // (13.0 * 24 * 3) / (36.0 * 18 );
     constexpr double kDriveWheelFreeSpeedRps =

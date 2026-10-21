@@ -42,7 +42,7 @@ public:
               units::radians_per_second_t rot,
               bool fieldRelative);
 
-        // Resets the gyro heading to 0 degrees so future field-relative driving uses the new reference.
+        // Aligns gyro and odometry to alliance forward (blue 0 degrees, red 180 degrees).
         void ZeroHeading();
 
         // Resets all four module drive/turning encoder positions to their base values.
@@ -166,7 +166,7 @@ private:
         //typically use it, and instead use the gyro.
         frc::SwerveDrivePoseEstimator<4> m_poseEstimator{
         kDriveKinematics,
-        frc::Rotation2d{},
+        m_gyro.GetRotation(),
         {m_frontLeft.GetPosition(), m_frontRight.GetPosition(),
         m_rearLeft.GetPosition(), m_rearRight.GetPosition()},
         frc::Pose2d{},
