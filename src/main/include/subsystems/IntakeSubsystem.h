@@ -23,10 +23,7 @@ public:
     double GetAngle();
     double GetTargetAngle();
 
-    void switchDeployState();
-    void setDeployState(bool state);
     void switchRollerState();
-    bool getDeployState();
     bool getRollerState();
 
 private:
@@ -34,6 +31,5 @@ private:
     NovaMotor fuelIntake{12};
     thrifty::CanEncoder intakeEncoder{0, 51}; //CAN bus 0, encoder ID 51
     double targetAngle = 0.0; 
-    bool deployState = false;
     bool rollerState = false;
 };

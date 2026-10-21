@@ -45,19 +45,21 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
         }, {m_drive}
     ));
 
-    //Toggle first, then command the matching angle in the same scheduled action.
+    // Toggle from the current target, so every SetAngle call stays in sync.
     driverRightTrigger.OnTrue(frc2::cmd::RunOnce([=] {
-        m_intake->switchDeployState();
-        m_intake->SetAngle(m_intake->getDeployState() ? INTAKE_DOWN : INTAKE_UP);
+        const double target = m_intake->GetTargetAngle();
+        const bool targetingDown = std::abs(target - INTAKE_DOWN.value()) <
+                                   std::abs(target - INTAKE_UP.value());
+        m_intake->SetAngle(targetingDown ? INTAKE_UP : INTAKE_DOWN);
     }, {m_intake}));
 
     //Share the shooter requirement so hood and flywheel controls can run together.
-    //Hold left trigger to update the hood target; its controller holds position on release.
+    //Hold left bumper for hood pitch; hold left trigger for flywheel RPM.
     (driverLeftBumper || driverLeftTrigger).WhileTrue(frc2::cmd::RunEnd(
         [=] {
-            if (driverLeftTrigger.Get()) m_shooter->setHoodFromDashboard();
+            if (driverLeftBumper.Get()) m_shooter->setHoodFromDashboard();
             m_shooter->setFlywheelVelocity(
-                driverLeftBumper.Get() ? m_shooter->getSmartDashboardVelocity() : 0.0);
+                driverLeftTrigger.Get() ? m_shooter->getSmartDashboardVelocity() : 0.0);
         },
         [=] { m_shooter->setFlywheelSpeed(0); }, {m_shooter}));
 
@@ -155,16 +157,6 @@ frc2::CommandPtr XLock(DriveSubsystem* m_drive) {
     }, {m_drive});
 }
 
-frc2::CommandPtr setIntakeAngle(IntakeSubsystem* m_intake, units::turn_t onTrueAngle, units::turn_t onFalseAngle) {
-    return frc2::cmd::RunOnce([=] {
-        if (m_intake->getDeployState()) {
-            m_intake->SetAngle(onTrueAngle);
-        } else {
-            m_intake->SetAngle(onFalseAngle);
-        }
-    }, {m_intake});
-}
-
 frc2::CommandPtr zeroPose(DriveSubsystem* m_drive) {
     return frc2::cmd::RunOnce([=] {
         //Reset field position and heading to the origin.
@@ -174,10 +166,3 @@ frc2::CommandPtr zeroPose(DriveSubsystem* m_drive) {
 
 frc2::CommandPtr switchRollerState(IntakeSubsystem* m_intake) {
     return frc2::cmd::RunOnce([=] {m_intake->switchRollerState();}, {m_intake});}
-
-frc2::CommandPtr switchDeployState(IntakeSubsystem* m_intake) {
-    return frc2::cmd::RunOnce([=] {m_intake->switchDeployState();}, {m_intake});}
-
-    frc2::CommandPtr setDeployState(IntakeSubsystem* m_intake, bool state) {
-        return frc2::cmd::RunOnce([=] {m_intake->setDeployState(state);}, {m_intake});
-    }

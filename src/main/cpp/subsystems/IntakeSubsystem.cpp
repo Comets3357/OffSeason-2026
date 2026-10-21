@@ -69,20 +69,8 @@ double IntakeSubsystem::GetTargetAngle() {
     return targetAngle;
 }
 
-void IntakeSubsystem::switchDeployState() {
-    deployState = !deployState;
-}
-
-void IntakeSubsystem::setDeployState(bool state) {
-    deployState = state;
-}
-
 void IntakeSubsystem::switchRollerState() {
     rollerState = !rollerState;
-}
-
-bool IntakeSubsystem::getDeployState() {
-    return deployState;
 }
 
 bool IntakeSubsystem::getRollerState() {

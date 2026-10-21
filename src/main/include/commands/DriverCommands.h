@@ -29,12 +29,9 @@ std::function<bool()> isMoving(DriveSubsystem* m_drive);
 std::function<double()> driveShootMult(IndexSubsystem* m_index);
 
 frc2::CommandPtr rotateTo(DriveSubsystem *drive, units::degree_t targetrot, frc2::CommandXboxController *m_driverController);
-frc2::CommandPtr setIntakeAngle(IntakeSubsystem* m_intake, units::turn_t onTrueAngle, units::turn_t onFalseAngle);
 frc2::CommandPtr runIntakeRoller(IntakeSubsystem* m_intake, double onTruePercent, double onFalsePercent);
 frc2::CommandPtr runIntakeRoller(IntakeSubsystem* m_intake, double speed);
 frc2::CommandPtr switchRollerState(IntakeSubsystem* m_intake);
-frc2::CommandPtr switchDeployState(IntakeSubsystem* m_intake);
-frc2::CommandPtr setDeployState(IntakeSubsystem* m_intake, bool state);
 
 frc2::CommandPtr XLock(DriveSubsystem* m_drive);
 frc2::CommandPtr zeroPose(DriveSubsystem* m_drive);

@@ -19,7 +19,6 @@ class RobotContainer {
   std::string GetAutonomousName();
   IntakeSubsystem m_intake;
   IndexSubsystem m_index;
-  VisionSubsystem m_vision;
   DriveSubsystem m_drive;
   ShooterSubsystem m_shooter{m_drive};
 
