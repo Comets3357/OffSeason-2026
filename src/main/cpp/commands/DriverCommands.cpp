@@ -119,14 +119,9 @@ void DriverCommands(
         {drive}));
 
     // Shooting controls share requirements so manual kicker input cannot bypass readiness.
-    // Left bumper: hood target. Right trigger: lookup RPM + feed.
-    auto shooterControls = leftBumper || rightTrigger;
-    (shooterControls || hopperButton || kickerButton).WhileTrue(frc2::cmd::RunEnd(
+    // Right trigger: lookup RPM + feed.
+    (rightTrigger || hopperButton || kickerButton).WhileTrue(frc2::cmd::RunEnd(
         [=] {
-            if (leftBumper.Get()) {
-                shooter->setHoodFromDashboard();
-            }
-
             const bool shooting = rightTrigger.Get();
             double rpm = 0.0;
 
@@ -159,13 +154,15 @@ void DriverCommands(
         {intake}));
 
     // Left trigger lowers the intake and runs rollers; right bumper runs rollers only.
-    // Keep one owner so releasing either button does not stop the other one's rollers.
-    (leftTrigger || rightBumper).WhileTrue(frc2::cmd::RunEnd(
+    // Left bumper takes priority: raise the intake and stop both rollers.
+    (leftBumper || leftTrigger || rightBumper).WhileTrue(frc2::cmd::RunEnd(
         [=] {
-            if (leftTrigger.Get()) {
+            if (leftBumper.Get()) {
+                intake->SetAngle(kIntakeUp);
+            } else if (leftTrigger.Get()) {
                 intake->SetAngle(kIntakeDown);
             }
-            intake->IntakeRoller(kIntakeRollerSpeed);
+            intake->IntakeRoller(leftBumper.Get() ? 0.0 : kIntakeRollerSpeed);
         },
         // Leave deploy at its last target; stop rollers on release or interruption.
         [=] { intake->IntakeRoller(0); },

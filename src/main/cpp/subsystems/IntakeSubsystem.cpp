@@ -17,6 +17,11 @@ IntakeSubsystem::IntakeSubsystem() {
     fuelIntake.SetInverted(true);
     fuelIntake.ApplyConfiguration();
 
+    // The second roller receives the same output with opposite inversion.
+    fuelIntakeSecondary.SetCurrentLimit(65);
+    fuelIntakeSecondary.SetInverted(false);
+    fuelIntakeSecondary.ApplyConfiguration();
+
     fuelDeploy.SetCurrentLimit(40);
     fuelDeploy.SetExternalEncoder(51); //Thrifty through-bore CAN encoder
     fuelDeploy.SetAbsoluteConversionFactor(1);
@@ -49,11 +54,13 @@ void IntakeSubsystem::Periodic() {
 void IntakeSubsystem::SimulationPeriodic() {
     fuelDeploy.SimulationPeriodic();
     fuelIntake.SimulationPeriodic();
+    fuelIntakeSecondary.SimulationPeriodic();
 }
 
 //Sets intake percentage (variable)
 void IntakeSubsystem::IntakeRoller(double percent) {
     fuelIntake.Set(percent);
+    fuelIntakeSecondary.Set(percent);
 }
 
 void IntakeSubsystem::SetAngle(units::turn_t angle) {

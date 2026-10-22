@@ -10,7 +10,7 @@ public:
     void Periodic() override;
     void SimulationPeriodic() override;
 
-    //Set Percent of roller
+    // Command both rollers together.
     void IntakeRoller(double percent);
 
     //Set angle of intake
@@ -29,6 +29,7 @@ public:
 private:
     NovaMotor fuelDeploy{11};
     NovaMotor fuelIntake{12};
+    NovaMotor fuelIntakeSecondary{13};
     thrifty::CanEncoder intakeEncoder{0, 51}; //CAN bus 0, encoder ID 51
     double targetAngle = 0.0; 
     bool rollerState = false;
