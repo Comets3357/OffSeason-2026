@@ -28,6 +28,7 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& drive) : m_drive(drive) {
     shooterPitchMotor.SetMaxOutput(1);
     shooterPitchMotor.Set(0);
     shooterPitchMotor.SetPID(2, 0, 0, 0, 0);
+    shooterPitchMotor.SetInternalEncoderPosition(0_deg);
     shooterPitchMotor.ApplyConfiguration();
     targetHoodMotorTurns = getHoodPitch();
 

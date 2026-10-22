@@ -57,7 +57,7 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
     //Hold left bumper for hood pitch; hold left trigger for flywheel RPM.
     (driverLeftBumper || driverLeftTrigger).WhileTrue(frc2::cmd::RunEnd(
         [=] {
-            // if (driverLeftBumper.Get()) m_shooter->setHoodFromDashboard();
+            if (driverLeftBumper.Get()) m_shooter->setHoodFromDashboard();
             m_shooter->setFlywheelVelocity(
                 driverLeftTrigger.Get() ? m_shooter->getSmartDashboardVelocity() : 0.0);
         },
@@ -78,8 +78,8 @@ void DriverCommands(DriveSubsystem* m_drive, IndexSubsystem* m_index, IntakeSubs
     //One command lets X and Y run independently without interrupting each other.
     (driverX || driverY).WhileTrue(frc2::cmd::RunEnd(
         [=] {
-            m_index->setHopperSpeed(driverX.Get() ? 0.5 : 0.0);
-            m_index->setKickerSpeed(driverY.Get() ? 0.5 : 0.0);
+            m_index->setHopperSpeed(driverX.Get() ? 0.25 : 0.0);
+            m_index->setKickerSpeed(driverY.Get() ? 0.85 : 0.0);
         },
         [=] {
             m_index->setHopperSpeed(0);
