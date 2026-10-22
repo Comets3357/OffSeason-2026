@@ -2,8 +2,6 @@
 
 #include <string>
 
-#include "wrappers/REVBase.h"
-
 #include <frc/kinematics/SwerveModuleState.h>
 #include <frc/kinematics/SwerveModulePosition.h>
 #include "wrappers/NovaBase.h"
@@ -31,7 +29,7 @@
         private:
             frc::SwerveModuleState correctedDesiredState{};
 
-            SparkFlexMotor m_driveMotor;
+            NovaMotor m_driveMotor;
             NovaMotor m_steerMotor;
 
             //software zero for the drive encoder, in motor rotations.

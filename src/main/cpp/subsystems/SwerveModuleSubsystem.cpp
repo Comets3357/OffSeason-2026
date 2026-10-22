@@ -17,10 +17,12 @@ constexpr double MPS_TO_RPM = 1.0 / RPM_TO_MPS;
 constexpr units::current::ampere_t steerCurrentLimit = 25_A;
 constexpr units::current::ampere_t driveCurrentLimit = 60_A;
 
-constexpr double driveP = 0.0004;
+// Initial Nova velocity gains use rotations/second instead of the REV loop's RPM.
+// Scale the previous duty-cycle gains by 60; verify tuning on the new controllers.
+constexpr double driveP = 0.0004 * 60.0;
 constexpr double driveI = 0.0;
 constexpr double driveD = 0.0;
-constexpr double driveFF = 0.0004;
+constexpr double driveFF = 0.0004 * 60.0;
 
 constexpr double steerP = 4;
 constexpr double steerI = 0.0;
@@ -29,7 +31,7 @@ constexpr double steerD = 0.0;
 
 SwerveModule::SwerveModule(int steerId, int driveId, double offset,
                          bool steerEncoderInverted, bool driveMotorInverted)
-    : m_driveMotor{driveId},
+    : m_driveMotor{driveId, thrifty::Motor::NEO},
       m_steerMotor{steerId, thrifty::Motor::MINION},
       offset{frc::Rotation2d{units::degree_t{offset}}},
       steerEncoderInverted{steerEncoderInverted}
@@ -42,15 +44,15 @@ SwerveModule::SwerveModule(int steerId, int driveId, double offset,
     m_steerMotor.SetPID(steerP, steerI, steerD, 0.0, 0);
     m_steerMotor.SetAbsoluteWrapping(true);
 
-    //the REV wrapper takes a MotorConfig and reports degrees and RPM.
+    // The Nova wrapper reports degrees and RPM, preserving odometry conversions.
     MotorBase::MotorConfig driveConfig;
     driveConfig.currentLimitAmps = driveCurrentLimit.value();
     driveConfig.inverted = driveMotorInverted;
     driveConfig.enableVoltageCompensation = true;
     driveConfig.voltageCompensation = 12.0;
     m_driveMotor.ApplyConfiguration(driveConfig);
-    //convert the old duty-cycle feedforward to the new volts-per-RPM kV.
-    m_driveMotor.SetPID(driveP, driveI, driveD, driveFF * 12.0, 0);
+    // Nova uses native F here, not the REV voltage feedforward kV.
+    m_driveMotor.SetPID(driveP, driveI, driveD, driveFF, 0);
 }
 
 double SwerveModule::GetSteerRotations() {
