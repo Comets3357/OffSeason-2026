@@ -119,8 +119,8 @@ void DriverCommands(
         {drive}));
 
     // Shooting controls share requirements so manual kicker input cannot bypass readiness.
-    // Left bumper: hood target. Left trigger: dashboard RPM. Right trigger: lookup RPM + feed.
-    auto shooterControls = leftBumper || leftTrigger || rightTrigger;
+    // Left bumper: hood target. Right trigger: lookup RPM + feed.
+    auto shooterControls = leftBumper || rightTrigger;
     (shooterControls || hopperButton || kickerButton).WhileTrue(frc2::cmd::RunEnd(
         [=] {
             if (leftBumper.Get()) {
@@ -132,8 +132,6 @@ void DriverCommands(
 
             if (shooting) {
                 rpm = shooter->calculateTrajectory(shooter->getTargetPose()).flywheelRpm.value();
-            } else if (leftTrigger.Get()) {
-                rpm = shooter->getSmartDashboardVelocity();
             }
 
             shooter->setFlywheelVelocity(rpm);
@@ -155,16 +153,21 @@ void DriverCommands(
         },
         {shooter, index}));
 
-    // Intake: A toggles the target; right bumper runs the roller while held.
+    // A toggles the intake target independently of the roller controls.
     driver->A().OnTrue(frc2::cmd::RunOnce(
         [=] { ToggleIntakeTarget(intake); },
         {intake}));
 
-    rightBumper.OnTrue(frc2::cmd::RunOnce(
-        [=] { intake->IntakeRoller(kIntakeRollerSpeed); },
-        {intake}));
-
-    rightBumper.OnFalse(frc2::cmd::RunOnce(
+    // Left trigger lowers the intake and runs rollers; right bumper runs rollers only.
+    // Keep one owner so releasing either button does not stop the other one's rollers.
+    (leftTrigger || rightBumper).WhileTrue(frc2::cmd::RunEnd(
+        [=] {
+            if (leftTrigger.Get()) {
+                intake->SetAngle(kIntakeDown);
+            }
+            intake->IntakeRoller(kIntakeRollerSpeed);
+        },
+        // Leave deploy at its last target; stop rollers on release or interruption.
         [=] { intake->IntakeRoller(0); },
         {intake}));
 
