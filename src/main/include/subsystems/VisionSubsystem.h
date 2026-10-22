@@ -45,19 +45,19 @@ class VisionSubsystem : public frc2::SubsystemBase {
 
         frc::Transform3d robotToCamFront =
             frc::Transform3d(frc::Translation3d(-1.0_in, 14.25_in, 20.75_in),
-                        frc::Rotation3d(0_rad, -0.261799_rad, 0_rad));
+                        frc::Rotation3d(0_rad, -0.349066_rad, 0_rad));
 
         frc::Transform3d robotToCamLeft =
             frc::Transform3d(frc::Translation3d(2.5_in, 12.39_in, 8.5_in),
-                        frc::Rotation3d(0_rad, -0.261799_rad, 1.570796_rad));
+                        frc::Rotation3d(0_rad, 0.174533_rad, 1.570796_rad));
 
          frc::Transform3d robotToCamBack =
             frc::Transform3d(frc::Translation3d(-12.4488_in, 0.0_in, 14.282_in),
-                        frc::Rotation3d(0_rad, -0.261799_rad, 3.14159_rad));
+                        frc::Rotation3d(0_rad, 0.174533_rad, 3.14159_rad));
 
         frc::Transform3d robotToCamRight =
             frc::Transform3d(frc::Translation3d(2.50_in, -12.39_in, 8.5_in),
-                        frc::Rotation3d(0_rad, -0.261799_rad, 3.1415_rad + 1.570796_rad));
+                        frc::Rotation3d(0_rad, -0.174533_rad, 3.1415_rad + 1.570796_rad));
 
 
         photon::PhotonPoseEstimator poseEstimatorOne{kTagLayout, photon::PoseStrategy::MULTI_TAG_PNP_ON_COPROCESSOR, robotToCamFront};

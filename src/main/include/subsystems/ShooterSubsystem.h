@@ -21,6 +21,7 @@ public:
     void setFlywheelSpeed(double percent);
     void setFlywheelVelocity(double rpm);
     double getSmartDashboardVelocity();
+    bool flywheelsAtSpeed(double targetRpm);
 
     // Native internal encoder turns, clamped to 0–18.5 with no offset.
     void setHoodPitch(units::turn_t position);

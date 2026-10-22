@@ -5,9 +5,9 @@
 
 void ShooterLookup::Init() {
     // Distance in meters -> hood angle in degrees.
-    angleMap = {{1.46, 17.5}, {1.92, 21.0}, {3.29, 28.0}, {5.9, 29.5}};
+    angleMap = {{1.85, 4}, {4.49, 6.8}};
     // Distance in meters -> flywheel RPM.
-    velocityMap = {{1.85, -2000.0}, {2.0, 1025.0}};
+    velocityMap = {{1.85, -2000.0}, {4.49, -2500.0}};
 }
 
 double ShooterLookup::calculateHoodAngle(units::meter_t distance) const {

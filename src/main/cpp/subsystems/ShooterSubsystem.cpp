@@ -87,6 +87,16 @@ void ShooterSubsystem::setFlywheelVelocity(double rpm) {
     thirdFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{rpm});
 }
 
+bool ShooterSubsystem::flywheelsAtSpeed(double targetRpm) {
+    if (!std::isfinite(targetRpm) || std::abs(targetRpm) < 100.0) return false;
+    const double tolerance = std::abs(targetRpm) * 0.05;
+    for (auto* motor : {&primaryFlywheelMotor, &secondaryFlywheelMotor, &thirdFlywheelMotor}) {
+        const double actual = motor->getVelocity().value();
+        if (!std::isfinite(actual) || std::abs(actual - targetRpm) > tolerance) return false;
+    }
+    return true;
+}
+
 double ShooterSubsystem::getSmartDashboardVelocity() {
     return frc::SmartDashboard::GetNumber("Smart Dashboard Flywheel Velocity", 0);
 }
