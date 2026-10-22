@@ -3,6 +3,8 @@
 #include <algorithm>
 
 constexpr double INTAKE_ENCODER_RATIO = 1.0 / 105.0;
+constexpr units::turn_t kDeployReverseLimit{0};
+constexpr units::turn_t kDeployForwardLimit{40};
 
 
 //Constructor
@@ -28,8 +30,8 @@ IntakeSubsystem::IntakeSubsystem() {
     fuelDeploy.SetSoftLimitSource(thrifty::Motor::FeedbackSensorType::INTERNAL);
     fuelDeploy.SetInverted(true);
     fuelDeploy.SetAbsoluteWrapping(false);
-    fuelDeploy.SetForwardSoftLimit(units::angle::turn_t{40});
-    fuelDeploy.SetReverseSoftLimit(units::angle::turn_t{0});
+    fuelDeploy.SetForwardSoftLimit(kDeployForwardLimit);
+    fuelDeploy.SetReverseSoftLimit(kDeployReverseLimit);
     fuelDeploy.EnableForwardSoftLimit(true);
     fuelDeploy.Set(0);
     fuelDeploy.SetMaxOutput(1);
@@ -44,6 +46,8 @@ IntakeSubsystem::IntakeSubsystem() {
 
 void IntakeSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Intake angle (turns)", GetAngle());
+    frc::SmartDashboard::PutNumber("Intake absolute encoder (turns)",
+        units::turn_t{fuelDeploy.getAbsolutePosition()}.value());
     frc::SmartDashboard::PutNumber("Intake target angle (turns)", GetTargetAngle());
     frc::SmartDashboard::PutNumber("Intake Amperage", fuelDeploy.GetOutputCurrent());
     frc::SmartDashboard::PutNumber("Intake Applied Voltage", fuelDeploy.GetAppliedVoltage());
@@ -64,7 +68,9 @@ void IntakeSubsystem::IntakeRoller(double percent) {
 }
 
 void IntakeSubsystem::SetAngle(units::turn_t angle) {
-    targetAngle = std::clamp(angle.value(), units::turn_t{fuelDeploy.getReverseLimit()}.value(), units::turn_t{fuelDeploy.getForwardLimit()}.value());
+    // Use the configured limits; CAN status may not have reported them yet.
+    targetAngle = std::clamp(angle.value(),
+        kDeployReverseLimit.value(), kDeployForwardLimit.value());
     fuelDeploy.SetPosition(units::turn_t{targetAngle});
 }
 
@@ -84,7 +90,7 @@ bool IntakeSubsystem::getRollerState() {
     return rollerState;
 }
 
-//returns angle of fuel deploy
+// Match the internal motor-turn units used by SetAngle and the soft limits.
 double IntakeSubsystem::GetAngle() {
-    return units::turn_t{fuelDeploy.getAbsolutePosition()}.value();
+    return units::turn_t{fuelDeploy.getPosition()}.value();
 }
