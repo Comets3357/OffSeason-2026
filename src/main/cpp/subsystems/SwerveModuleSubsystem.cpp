@@ -82,29 +82,19 @@ frc::SwerveModuleState SwerveModule::GetState() {
 void SwerveModule::SetDesiredState(
     const frc::SwerveModuleState &desiredState)
 {
-    // Apply chassis angular offset to the desired state.
+    // Keep the kinematics angle and speed paired directly. Optimization normally
+    // adds 180 degrees and reverses speed; leave that out while validating the
+    // physical steering coordinates and drive direction on these modules.
     correctedDesiredState.speed = desiredState.speed;
-    correctedDesiredState.angle =
-        desiredState.angle +
-        frc::Rotation2d{offset.Degrees()};
+    correctedDesiredState.angle = desiredState.angle + offset;
 
-    // Optimize the reference state to avoid spinning further than 90 degrees.
-    correctedDesiredState.Optimize(
-        frc::Rotation2d(units::degree_t{GetSteerRotations() * 360}));
+    // Undo software encoder inversion to get the native absolute sensor target.
+    auto steeringTarget = correctedDesiredState.angle.Degrees();
+    if (steerEncoderInverted) steeringTarget = -steeringTarget;
+    m_steerMotor.SetAbsolutePosition(steeringTarget);
 
-    //set the drive motorto a specific speed.
-    m_driveMotor.SetVelocity(
-        units::revolutions_per_minute_t(
-            correctedDesiredState.speed.value() * MPS_TO_RPM
-        )
-    );
-
-    //once we calculate the desired angle state, set the position of the steer motors
-    units::turn_t targetRotations{correctedDesiredState.angle.Degrees().value() / 360.0};
-
-    //undo the optional software inversion before sending a native sensor target.
-    if (steerEncoderInverted) targetRotations = -targetRotations;
-    m_steerMotor.SetAbsolutePosition(units::degree_t{targetRotations});
+    m_driveMotor.SetVelocity(units::revolutions_per_minute_t{
+        correctedDesiredState.speed.value() * MPS_TO_RPM});
 }
 
 void SwerveModule::Stop() {
@@ -120,7 +110,7 @@ frc::SwerveModuleState SwerveModule::GetDesiredState() {
 
 void SwerveModule::UpdateDashboard(const std::string& name) {
     auto actual = GetState();
-    //Use robot-relative angles for both values, including the optimized target.
+    // Use robot-relative angles for both measured and requested values.
     auto requestedAngle = correctedDesiredState.angle - offset;
     std::string key = "Swerve/" + name;
     frc::SmartDashboard::PutNumber(key + "/Actual Angle (turns)",
