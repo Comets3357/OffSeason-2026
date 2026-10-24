@@ -42,8 +42,9 @@ void DriveWithJoystick(
     ShooterSubsystem* shooter,
     frc::PIDController& aimPid,
     bool aimAtHub) {
-    // Use the same joystick direction on both alliances.
-    const auto translationScale = -DriveConstants::kMaxSpeed;
+    // Flip blue translation; preserve red's negative joystick scaling.
+    const double translationSign = drive->IsBlueAlliance() ? 1.0 : -1.0;
+    const auto translationScale = translationSign * DriveConstants::kMaxSpeed;
 
     const auto forward = ApplyDriverDeadband(driver->GetLeftY()) * translationScale;
     const auto strafe = ApplyDriverDeadband(driver->GetLeftX()) * translationScale;
