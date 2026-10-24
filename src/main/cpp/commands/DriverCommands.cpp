@@ -96,7 +96,7 @@ void DriverCommands(
     auto rightTrigger = operatorController->RightTrigger();
     auto hopperButton = operatorController->B() || driver->B();
     auto reverseKicker = operatorController->X();
-    auto dashboardShoot = operatorController->Y();
+    auto manualKicker = operatorController->Y();
     auto dashboardHood = operatorController->A();
 
     // These commands only adjust trim, so they must not interrupt shooting.
@@ -121,11 +121,10 @@ void DriverCommands(
 
     // Either B runs the hopper floor; releasing both stops it.
     // Right trigger: lookup hood position and RPM, then feed at speed.
-    // Y overrides lookup RPM; A overrides the hood target with dashboard settings.
-    (rightTrigger || hopperButton || reverseKicker || dashboardShoot || dashboardHood).WhileTrue(frc2::cmd::RunEnd(
+    // Y runs the kicker manually; A uses the dashboard hood target.
+    (rightTrigger || hopperButton || reverseKicker || manualKicker || dashboardHood).WhileTrue(frc2::cmd::RunEnd(
         [=] {
             const bool lookupShooting = rightTrigger.Get();
-            const bool shooting = lookupShooting || dashboardShoot.Get();
             double rpm = 0.0;
 
             if (lookupShooting) {
@@ -137,18 +136,18 @@ void DriverCommands(
             }
 
             if (dashboardHood.Get()) shooter->setHoodFromDashboard();
-            if (dashboardShoot.Get()) rpm = shooter->getSmartDashboardVelocity();
 
             shooter->setFlywheelVelocity(rpm);
 
             // Recheck every loop: pause automatic feeding whenever flywheel speed drops.
-            const bool ready = shooting && shooter->flywheelsAtSpeed(rpm);
+            const bool ready = lookupShooting && shooter->flywheelsAtSpeed(rpm);
 
             index->setHopperSpeed(hopperButton.Get() ? kHopperSpeed : 0.0);
-            // Manual reverse takes priority over automatic forward feeding.
+            // X reverse takes priority; Y runs forward without waiting for flywheel speed.
             const bool reversing = reverseKicker.Get();
             const bool feeding = ready && !reversing;
-            index->setKickerSpeed(reversing ? -kKickerSpeed : (feeding ? kKickerSpeed : 0.0));
+            const bool runKicker = !reversing && (manualKicker.Get() || ready);
+            index->setKickerSpeed(reversing ? -kKickerSpeed : (runKicker ? kKickerSpeed : 0.0));
             PublishShotStatus(rpm, ready, feeding);
         },
         [=] {
