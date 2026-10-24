@@ -96,6 +96,8 @@ void DriverCommands(
     auto rightTrigger = operatorController->RightTrigger();
     auto hopperButton = operatorController->B() || driver->B();
     auto reverseKicker = operatorController->X();
+    auto dashboardShoot = operatorController->Y();
+    auto dashboardHood = operatorController->A();
 
     // These commands only adjust trim, so they must not interrupt shooting.
     operatorController->POVUp().OnTrue(frc2::cmd::RunOnce(
@@ -119,19 +121,23 @@ void DriverCommands(
 
     // Either B runs the hopper floor; releasing both stops it.
     // Right trigger: lookup hood position and RPM, then feed at speed.
-    (rightTrigger || hopperButton || reverseKicker).WhileTrue(frc2::cmd::RunEnd(
+    // Y overrides lookup RPM; A overrides the hood target with dashboard settings.
+    (rightTrigger || hopperButton || reverseKicker || dashboardShoot || dashboardHood).WhileTrue(frc2::cmd::RunEnd(
         [=] {
-            const bool shooting = rightTrigger.Get();
+            const bool lookupShooting = rightTrigger.Get();
+            const bool shooting = lookupShooting || dashboardShoot.Get();
             double rpm = 0.0;
 
-            if (shooting) {
+            if (lookupShooting) {
                 const auto shot = shooter->calculateTrajectory(shooter->getTargetPose());
-                shooter->setHoodPitch(shot.hoodMotorTurns);
                 rpm = shooter->applyFlywheelTrim(shot.flywheelRpm.value());
-            } else {
-                // Return the hood even if B or X stays held.
+                if (!dashboardHood.Get()) shooter->setHoodPitch(shot.hoodMotorTurns);
+            } else if (!dashboardHood.Get()) {
                 shooter->setHoodPitch(kHoodRestPosition);
             }
+
+            if (dashboardHood.Get()) shooter->setHoodFromDashboard();
+            if (dashboardShoot.Get()) rpm = shooter->getSmartDashboardVelocity();
 
             shooter->setFlywheelVelocity(rpm);
 
