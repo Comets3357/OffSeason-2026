@@ -26,6 +26,8 @@ using namespace pathplanner;
 constexpr double SPEED_VISION_WEIGHT = 6;
 constexpr double DISTANCE_VISION_WEIGHT = 1.2;
 constexpr double STANDARD_DEVIATION_WEIGHT = 0.12;
+constexpr units::meters_per_second_t kXLockSpeedThreshold{0.2};
+constexpr units::radians_per_second_t kXLockRotationThreshold{0.02};
 
 // Steps a value toward a target without changing by more than maxDelta in one update.
 double DriveSubsystem::Simulation::MoveTowards(double current, double target, double maxDelta) {
@@ -365,14 +367,14 @@ void DriveSubsystem::Drive(units::meters_per_second_t xSpeed,
             -DriveConstants::kMaxAngularSpeed.value(),
             DriveConstants::kMaxAngularSpeed.value())};
 
-    //if the robot is within teleop, lock the wheels if we are under a certain speed
-    // if (frc::DriverStation::IsTeleop() &&
-    //     units::math::abs(xSpeed) < 0.02_mps &&
-    //     units::math::abs(ySpeed) < 0.02_mps &&
-    //     units::math::abs(limitedRot) < 0.02_rad_per_s) {
-    //         SetX();
-    //         return;
-    // }
+    // Lock at low commanded translation in teleop, but allow turning in place
+    // and hub aiming. Autonomous retains its low-speed path corrections.
+    if (frc::DriverStation::IsTeleopEnabled() &&
+        std::hypot(xSpeed.value(), ySpeed.value()) < kXLockSpeedThreshold.value() &&
+        std::abs(limitedRot.value()) < kXLockRotationThreshold.value()) {
+        SetX();
+        return;
+    }
 
     const frc::ChassisSpeeds rawCommandedSpeeds =
         fieldRelative
