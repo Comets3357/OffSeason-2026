@@ -19,7 +19,7 @@ constexpr units::current::ampere_t driveCurrentLimit = 60_A;
 
 // Initial Nova velocity gains use rotations/second instead of the REV loop's RPM.
 // Scale the previous duty-cycle gains by 60; verify tuning on the new controllers.
-constexpr double driveP = 0.0004 * 1.0;
+constexpr double driveP = 0.0004 * 10.0;
 constexpr double driveI = 0.0;
 constexpr double driveD = 0.0;
 constexpr double driveFF = 0.0004 * 10.0;

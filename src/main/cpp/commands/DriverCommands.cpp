@@ -23,7 +23,7 @@ constexpr double kHubAimI = 0.0;
 constexpr double kHubAimD = 0.0;
 constexpr double kMinimumAimDistanceMeters = 0.1;
 
-constexpr units::turn_t kIntakeDown{40};
+constexpr units::turn_t kIntakeDown{44};
 constexpr units::turn_t kIntakeUp{1};
 constexpr double kIntakeRollerSpeed = 0.9;
 constexpr double kFlywheelTrimStepRpm = 50.0;

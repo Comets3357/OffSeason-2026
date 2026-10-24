@@ -4,7 +4,7 @@
 
 constexpr double INTAKE_ENCODER_RATIO = 1.0 / 105.0;
 constexpr units::turn_t kDeployReverseLimit{0};
-constexpr units::turn_t kDeployForwardLimit{40};
+constexpr units::turn_t kDeployForwardLimit{44};
 
 
 //Constructor
