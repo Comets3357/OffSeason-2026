@@ -57,9 +57,9 @@ void DriverCommands(
     auto leftBumper = driver->LeftBumper();
     auto leftTrigger = driver->LeftTrigger();
 
-    // Operator controls shooting and the hopper floor.
+    // Operator controls shooting; either controller can run the hopper floor.
     auto rightTrigger = operatorController->RightTrigger();
-    auto hopperButton = operatorController->B();
+    auto hopperButton = operatorController->B() || driver->B();
     auto reverseKicker = operatorController->X();
 
     // These commands only adjust trim, so they must not interrupt shooting.
@@ -75,7 +75,7 @@ void DriverCommands(
         },
         {drive}));
 
-    // B runs the hopper floor; shared requirements keep it compatible with shooting.
+    // Either B runs the hopper floor; releasing both stops it.
     // Right trigger: lookup hood position and RPM, then feed at speed.
     (rightTrigger || hopperButton || reverseKicker).WhileTrue(frc2::cmd::RunEnd(
         [=] {
