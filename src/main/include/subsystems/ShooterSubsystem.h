@@ -22,15 +22,18 @@ public:
     void setFlywheelVelocity(double rpm);
     double getSmartDashboardVelocity();
     bool flywheelsAtSpeed(double targetRpm);
+    // Positive trim increases shooting speed, preserving the lookup direction.
+    void adjustFlywheelTrim(double deltaRpm);
+    double applyFlywheelTrim(double lookupRpm) const;
 
     // Native internal encoder turns, clamped to 0–18.5 with no offset.
     void setHoodPitch(units::turn_t position);
     void setHoodFromDashboard();
     double getHoodPitch();
 
-    // Lookup angles are physical degrees, not hood motor positions.
+    // Lookup hood positions use native internal motor rotations.
     struct ShotSetpoints {
-        units::degree_t hoodAngle;
+        units::turn_t hoodMotorTurns;
         units::revolutions_per_minute_t flywheelRpm;
     };
     ShotSetpoints calculateShot(units::meter_t distance);
@@ -51,6 +54,7 @@ private:
     NovaMotor thirdFlywheelMotor{33};
     NovaMotor shooterPitchMotor{41};
 
+    double flywheelTrimRpm = 0.0;
     double targetHoodMotorTurns = 0.0;
     double flywheelP = 0.004;
     double flywheelI = 0.0;

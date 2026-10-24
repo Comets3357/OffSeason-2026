@@ -6,11 +6,11 @@
 class ShooterLookup {
 public:
     void Init();
-    double calculateHoodAngle(units::meter_t distance) const; // Degrees.
+    double calculateHoodPosition(units::meter_t distance) const; // Internal motor turns.
     double calculateFlywheelVelocity(units::meter_t distance) const; // RPM.
 
 private:
     static double interpolate(const std::map<double, double>& table, double distance);
-    std::map<double, double> angleMap;
+    std::map<double, double> hoodPositionMap;
     std::map<double, double> velocityMap;
 };

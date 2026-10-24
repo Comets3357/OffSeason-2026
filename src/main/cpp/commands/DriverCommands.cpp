@@ -21,9 +21,10 @@ constexpr double kMinimumAimDistanceMeters = 0.1;
 constexpr units::turn_t kIntakeDown{40};
 constexpr units::turn_t kIntakeUp{1};
 constexpr double kIntakeRollerSpeed = 0.9;
-constexpr double kManualDeploySpeed = 0.1;
+constexpr double kFlywheelTrimStepRpm = 50.0;
 constexpr double kHopperSpeed = 0.25;
 constexpr double kKickerSpeed = 0.85;
+constexpr units::turn_t kHoodRestPosition{1};
 
 double ApplyDriverDeadband(double input) {
     return frc::ApplyDeadband(input, OIConstants::kDriveDeadband);
@@ -78,15 +79,6 @@ void DriveWithJoystick(
     drive->Drive(forward, strafe, turnRate, true);
 }
 
-void ToggleIntakeTarget(IntakeSubsystem* intake) {
-    const double target = intake->GetTargetAngle();
-    const bool targetingDown = std::abs(target - kIntakeDown.value()) <
-                               std::abs(target - kIntakeUp.value());
-
-    // Use the last requested position instead of maintaining a separate deploy state.
-    intake->SetAngle(targetingDown ? kIntakeUp : kIntakeDown);
-}
-
 void PublishShotStatus(double rpm, bool ready) {
     frc::SmartDashboard::PutNumber("Shooter/Commanded RPM", rpm);
     frc::SmartDashboard::PutBoolean("Shooter/At Speed", ready);
@@ -101,46 +93,56 @@ void DriverCommands(
     IntakeSubsystem* intake,
     ShooterSubsystem* shooter,
     frc2::CommandXboxController* driver,
-    [[maybe_unused]] frc2::CommandXboxController* operatorController) {
+    frc2::CommandXboxController* operatorController) {
+    // Driver controls movement and intake deployment.
     auto leftBumper = driver->LeftBumper();
     auto leftTrigger = driver->LeftTrigger();
-    auto rightTrigger = driver->RightTrigger();
-    auto rightBumper = driver->RightBumper();
-    auto hopperButton = driver->X();
-    auto kickerButton = driver->Y();
-    auto deployUp = driver->POVUp();
-    auto deployDown = driver->POVDown();
 
-    // Driving: left stick translates, right stick turns, right trigger aims at the hub.
+    // Operator controls shooting and the hopper floor.
+    auto rightTrigger = operatorController->RightTrigger();
+    auto hopperButton = operatorController->B();
+
+    // These commands only adjust trim, so they must not interrupt shooting.
+    operatorController->POVUp().OnTrue(frc2::cmd::RunOnce(
+        [=] { shooter->adjustFlywheelTrim(kFlywheelTrimStepRpm); }));
+    operatorController->POVDown().OnTrue(frc2::cmd::RunOnce(
+        [=] { shooter->adjustFlywheelTrim(-kFlywheelTrimStepRpm); }));
+
+    // Driver sticks control movement; operator right trigger engages hub aiming.
     drive->SetDefaultCommand(frc2::cmd::Run(
         [=] {
             DriveWithJoystick(drive, index, shooter, driver, rightTrigger.Get());
         },
         {drive}));
 
-    // Shooting controls share requirements so manual kicker input cannot bypass readiness.
-    // Right trigger: lookup RPM + feed.
-    (rightTrigger || hopperButton || kickerButton).WhileTrue(frc2::cmd::RunEnd(
+    // B runs the hopper floor; shared requirements keep it compatible with shooting.
+    // Right trigger: lookup hood position and RPM, then feed at speed.
+    (rightTrigger || hopperButton).WhileTrue(frc2::cmd::RunEnd(
         [=] {
             const bool shooting = rightTrigger.Get();
             double rpm = 0.0;
 
             if (shooting) {
-                rpm = shooter->calculateTrajectory(shooter->getTargetPose()).flywheelRpm.value();
+                const auto shot = shooter->calculateTrajectory(shooter->getTargetPose());
+                shooter->setHoodPitch(shot.hoodMotorTurns);
+                rpm = shooter->applyFlywheelTrim(shot.flywheelRpm.value());
+            } else {
+                // Return the hood even if B stays held.
+                shooter->setHoodPitch(kHoodRestPosition);
             }
 
             shooter->setFlywheelVelocity(rpm);
 
             // Recheck every loop: pause automatic feeding whenever flywheel speed drops.
             const bool ready = shooting && shooter->flywheelsAtSpeed(rpm);
-            const bool runKicker = shooting ? ready : kickerButton.Get();
 
             index->setHopperSpeed(hopperButton.Get() ? kHopperSpeed : 0.0);
-            index->setKickerSpeed(runKicker ? kKickerSpeed : 0.0);
+            index->setKickerSpeed(ready ? kKickerSpeed : 0.0);
             PublishShotStatus(rpm, ready);
         },
         [=] {
             // Stop all spinning mechanisms when these controls release or are interrupted.
+            shooter->setHoodPitch(kHoodRestPosition);
             shooter->setFlywheelSpeed(0);
             index->setHopperSpeed(0);
             index->setKickerSpeed(0);
@@ -148,14 +150,9 @@ void DriverCommands(
         },
         {shooter, index}));
 
-    // A toggles the intake target independently of the roller controls.
-    driver->A().OnTrue(frc2::cmd::RunOnce(
-        [=] { ToggleIntakeTarget(intake); },
-        {intake}));
-
-    // Left trigger lowers the intake and runs rollers; right bumper runs rollers only.
+    // Left trigger lowers the intake and runs both rollers.
     // Left bumper takes priority: raise the intake and stop both rollers.
-    (leftBumper || leftTrigger || rightBumper).WhileTrue(frc2::cmd::RunEnd(
+    (leftBumper || leftTrigger).WhileTrue(frc2::cmd::RunEnd(
         [=] {
             if (leftBumper.Get()) {
                 intake->SetAngle(kIntakeUp);
@@ -166,14 +163,6 @@ void DriverCommands(
         },
         // Leave deploy at its last target; stop rollers on release or interruption.
         [=] { intake->IntakeRoller(0); },
-        {intake}));
-
-    // POV up/down manually jogs deploy. Releasing either direction stops the motor.
-    (deployUp || deployDown).WhileTrue(frc2::cmd::RunEnd(
-        [=] {
-            intake->SetSpeed(deployUp.Get() ? kManualDeploySpeed : -kManualDeploySpeed);
-        },
-        [=] { intake->SetSpeed(0); },
         {intake}));
 
     // Start aligns heading to alliance forward, including while disabled.

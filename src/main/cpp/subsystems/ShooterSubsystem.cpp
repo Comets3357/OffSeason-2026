@@ -43,6 +43,7 @@ ShooterSubsystem::ShooterSubsystem(DriveSubsystem& drive) : m_drive(drive) {
 
 void ShooterSubsystem::Periodic() {
     updateFlywheelGains();
+    frc::SmartDashboard::PutNumber("Shooter/Flywheel Trim (RPM)", flywheelTrimRpm);
 
     const double position = getHoodPitch();
     frc::SmartDashboard::PutNumber("Hood Position (motor turns)", position);
@@ -59,7 +60,7 @@ void ShooterSubsystem::Periodic() {
     const auto distance = m_drive.GetEstimatedPose().Translation().Distance(getTargetPose().Translation());
     const auto shot = calculateShot(distance);
     frc::SmartDashboard::PutNumber("Lookup Distance (meters)", distance.value());
-    frc::SmartDashboard::PutNumber("Lookup Hood Angle (degrees)", shot.hoodAngle.value());
+    frc::SmartDashboard::PutNumber("Lookup Hood Position (motor turns)", shot.hoodMotorTurns.value());
     frc::SmartDashboard::PutNumber("Lookup Flywheel RPM", shot.flywheelRpm.value());
 }
 
@@ -85,6 +86,17 @@ void ShooterSubsystem::setFlywheelVelocity(double rpm) {
     primaryFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{rpm});
     secondaryFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{rpm});
     thirdFlywheelMotor.SetVelocity(units::revolutions_per_minute_t{rpm});
+}
+
+void ShooterSubsystem::adjustFlywheelTrim(double deltaRpm) {
+    if (std::isfinite(deltaRpm)) flywheelTrimRpm += deltaRpm;
+}
+
+double ShooterSubsystem::applyFlywheelTrim(double lookupRpm) const {
+    if (!std::isfinite(lookupRpm) || lookupRpm == 0.0) return 0.0;
+    // Clamp at zero so reducing speed never reverses the flywheels.
+    const double magnitude = std::max(0.0, std::abs(lookupRpm) + flywheelTrimRpm);
+    return std::copysign(magnitude, lookupRpm);
 }
 
 bool ShooterSubsystem::flywheelsAtSpeed(double targetRpm) {
@@ -118,7 +130,7 @@ double ShooterSubsystem::getHoodPitch() {
 
 ShooterSubsystem::ShotSetpoints ShooterSubsystem::calculateShot(units::meter_t distance) {
     if (!std::isfinite(distance.value()) || distance.value() < 0) return {};
-    return {units::degree_t{shooterLookup.calculateHoodAngle(distance)},
+    return {units::turn_t{shooterLookup.calculateHoodPosition(distance)},
             units::revolutions_per_minute_t{shooterLookup.calculateFlywheelVelocity(distance)}};
 }
 
