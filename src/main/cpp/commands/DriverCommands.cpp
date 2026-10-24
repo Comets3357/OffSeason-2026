@@ -1,7 +1,5 @@
 #include "commands/DriverCommands.h"
 
-#include <algorithm>
-#include <cmath>
 #include <frc/MathUtil.h>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc2/command/Commands.h>
@@ -13,10 +11,6 @@
 #include "subsystems/ShooterSubsystem.h"
 
 namespace {
-
-constexpr double kFeedingDriveMultiplier = 0.25;
-constexpr double kAimP = 3.0;
-constexpr double kMinimumAimDistanceMeters = 0.1;
 
 constexpr units::turn_t kIntakeDown{40};
 constexpr units::turn_t kIntakeUp{1};
@@ -30,59 +24,24 @@ double ApplyDriverDeadband(double input) {
     return frc::ApplyDeadband(input, OIConstants::kDriveDeadband);
 }
 
-// Point the front away from the hub so the rear-mounted shooter faces it.
-units::radians_per_second_t GetHubAimTurnRate(
-    DriveSubsystem* drive,
-    ShooterSubsystem* shooter) {
-    const auto pose = drive->GetEstimatedPose();
-    const auto hub = shooter->getTargetPose();
-    const double dx = (pose.X() - hub.X()).value();
-    const double dy = (pose.Y() - hub.Y()).value();
-
-    // A missing position or a position at the hub cannot define a useful heading.
-    if (!std::isfinite(dx) || !std::isfinite(dy) ||
-        !std::isfinite(pose.Rotation().Radians().value()) ||
-        std::hypot(dx, dy) <= kMinimumAimDistanceMeters) {
-        return 0_rad_per_s;
-    }
-
-    const frc::Rotation2d targetHeading{units::radian_t{std::atan2(dy, dx)}};
-    const auto error = targetHeading - pose.Rotation();
-    const double maxTurnRate = DriveConstants::kMaxAngularSpeed.value();
-
-    frc::SmartDashboard::PutNumber("Shooter/Aim Error (deg)", error.Degrees().value());
-
-    return units::radians_per_second_t{
-        std::clamp(kAimP * error.Radians().value(), -maxTurnRate, maxTurnRate)};
-}
-
+// Shooting controls do not change the driver's speed or rotation input.
 void DriveWithJoystick(
     DriveSubsystem* drive,
-    IndexSubsystem* index,
-    ShooterSubsystem* shooter,
-    frc2::CommandXboxController* driver,
-    bool aimAtHub) {
-    // Slow translation while feeding; preserve the existing alliance-relative controls.
-    const double speedMultiplier = index->getHighSpeedRailSpeed() > 0.5
-        ? kFeedingDriveMultiplier
-        : 1.0;
+    frc2::CommandXboxController* driver) {
     const double translationSign = drive->IsBlueAlliance() ? -1.0 : 1.0;
-    const auto translationScale = translationSign * speedMultiplier * DriveConstants::kMaxSpeed;
+    const auto translationScale = translationSign * DriveConstants::kMaxSpeed;
 
     const auto forward = ApplyDriverDeadband(driver->GetLeftY()) * translationScale;
     const auto strafe = ApplyDriverDeadband(driver->GetLeftX()) * translationScale;
-    const auto turnRate = aimAtHub
-        ? GetHubAimTurnRate(drive, shooter)
-        : -ApplyDriverDeadband(driver->GetRightX()) * speedMultiplier * DriveConstants::kMaxAngularSpeed;
+    const auto turnRate = -ApplyDriverDeadband(driver->GetRightX()) * DriveConstants::kMaxAngularSpeed;
 
-    // Automatic aiming replaces rotation only; the left stick still controls translation.
     drive->Drive(forward, strafe, turnRate, true);
 }
 
-void PublishShotStatus(double rpm, bool ready) {
+void PublishShotStatus(double rpm, bool ready, bool feeding) {
     frc::SmartDashboard::PutNumber("Shooter/Commanded RPM", rpm);
     frc::SmartDashboard::PutBoolean("Shooter/At Speed", ready);
-    frc::SmartDashboard::PutBoolean("Shooter/Auto Feed Active", ready);
+    frc::SmartDashboard::PutBoolean("Shooter/Auto Feed Active", feeding);
 }
 
 } // namespace
@@ -101,6 +60,7 @@ void DriverCommands(
     // Operator controls shooting and the hopper floor.
     auto rightTrigger = operatorController->RightTrigger();
     auto hopperButton = operatorController->B();
+    auto reverseKicker = operatorController->X();
 
     // These commands only adjust trim, so they must not interrupt shooting.
     operatorController->POVUp().OnTrue(frc2::cmd::RunOnce(
@@ -108,16 +68,16 @@ void DriverCommands(
     operatorController->POVDown().OnTrue(frc2::cmd::RunOnce(
         [=] { shooter->adjustFlywheelTrim(-kFlywheelTrimStepRpm); }));
 
-    // Driver sticks control movement; operator right trigger engages hub aiming.
+    // Driver sticks always control translation and rotation.
     drive->SetDefaultCommand(frc2::cmd::Run(
         [=] {
-            DriveWithJoystick(drive, index, shooter, driver, rightTrigger.Get());
+            DriveWithJoystick(drive, driver);
         },
         {drive}));
 
     // B runs the hopper floor; shared requirements keep it compatible with shooting.
     // Right trigger: lookup hood position and RPM, then feed at speed.
-    (rightTrigger || hopperButton).WhileTrue(frc2::cmd::RunEnd(
+    (rightTrigger || hopperButton || reverseKicker).WhileTrue(frc2::cmd::RunEnd(
         [=] {
             const bool shooting = rightTrigger.Get();
             double rpm = 0.0;
@@ -127,7 +87,7 @@ void DriverCommands(
                 shooter->setHoodPitch(shot.hoodMotorTurns);
                 rpm = shooter->applyFlywheelTrim(shot.flywheelRpm.value());
             } else {
-                // Return the hood even if B stays held.
+                // Return the hood even if B or X stays held.
                 shooter->setHoodPitch(kHoodRestPosition);
             }
 
@@ -137,8 +97,11 @@ void DriverCommands(
             const bool ready = shooting && shooter->flywheelsAtSpeed(rpm);
 
             index->setHopperSpeed(hopperButton.Get() ? kHopperSpeed : 0.0);
-            index->setKickerSpeed(ready ? kKickerSpeed : 0.0);
-            PublishShotStatus(rpm, ready);
+            // Manual reverse takes priority over automatic forward feeding.
+            const bool reversing = reverseKicker.Get();
+            const bool feeding = ready && !reversing;
+            index->setKickerSpeed(reversing ? -kKickerSpeed : (feeding ? kKickerSpeed : 0.0));
+            PublishShotStatus(rpm, ready, feeding);
         },
         [=] {
             // Stop all spinning mechanisms when these controls release or are interrupted.
@@ -146,7 +109,7 @@ void DriverCommands(
             shooter->setFlywheelSpeed(0);
             index->setHopperSpeed(0);
             index->setKickerSpeed(0);
-            PublishShotStatus(0, false);
+            PublishShotStatus(0, false, false);
         },
         {shooter, index}));
 
