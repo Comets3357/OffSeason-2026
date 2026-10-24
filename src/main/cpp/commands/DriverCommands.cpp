@@ -1,5 +1,10 @@
 #include "commands/DriverCommands.h"
 
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <numbers>
+#include <frc/controller/PIDController.h>
 #include <frc/MathUtil.h>
 #include <frc/smartdashboard/SmartDashboard.h>
 #include <frc2/command/Commands.h>
@@ -11,6 +16,12 @@
 #include "subsystems/ShooterSubsystem.h"
 
 namespace {
+
+// Hub-facing rotation PID: radians in, radians/second out.
+constexpr double kHubAimP = 3.0;
+constexpr double kHubAimI = 0.0;
+constexpr double kHubAimD = 0.0;
+constexpr double kMinimumAimDistanceMeters = 0.1;
 
 constexpr units::turn_t kIntakeDown{40};
 constexpr units::turn_t kIntakeUp{1};
@@ -24,16 +35,39 @@ double ApplyDriverDeadband(double input) {
     return frc::ApplyDeadband(input, OIConstants::kDriveDeadband);
 }
 
-// Shooting controls do not change the driver's speed or rotation input.
+// Operator left trigger overrides rotation only; driver translation stays active.
 void DriveWithJoystick(
     DriveSubsystem* drive,
-    frc2::CommandXboxController* driver) {
+    frc2::CommandXboxController* driver,
+    ShooterSubsystem* shooter,
+    frc::PIDController& aimPid,
+    bool aimAtHub) {
     const double translationSign = drive->IsBlueAlliance() ? -1.0 : 1.0;
     const auto translationScale = translationSign * DriveConstants::kMaxSpeed;
 
     const auto forward = ApplyDriverDeadband(driver->GetLeftY()) * translationScale;
     const auto strafe = ApplyDriverDeadband(driver->GetLeftX()) * translationScale;
-    const auto turnRate = -ApplyDriverDeadband(driver->GetRightX()) * DriveConstants::kMaxAngularSpeed;
+    auto turnRate = -ApplyDriverDeadband(driver->GetRightX()) * DriveConstants::kMaxAngularSpeed;
+
+    if (aimAtHub) {
+        const auto pose = drive->GetEstimatedPose();
+        const auto hub = shooter->getTargetPose();
+        // Front faces away from the hub so the rear shooter faces toward it.
+        const double dx = (pose.X() - hub.X()).value();
+        const double dy = (pose.Y() - hub.Y()).value();
+        const double heading = pose.Rotation().Radians().value();
+        if (std::isfinite(dx) && std::isfinite(dy) && std::isfinite(heading) &&
+            std::hypot(dx, dy) > kMinimumAimDistanceMeters) {
+            const double output = aimPid.Calculate(heading, std::atan2(dy, dx));
+            const double maxRate = DriveConstants::kMaxAngularSpeed.value();
+            turnRate = units::radians_per_second_t{std::clamp(output, -maxRate, maxRate)};
+        } else {
+            aimPid.Reset();
+            turnRate = 0_rad_per_s;
+        }
+    } else {
+        aimPid.Reset();
+    }
 
     drive->Drive(forward, strafe, turnRate, true);
 }
@@ -58,6 +92,7 @@ void DriverCommands(
     auto leftTrigger = driver->LeftTrigger();
 
     // Operator controls shooting; either controller can run the hopper floor.
+    auto aimTrigger = operatorController->LeftTrigger();
     auto rightTrigger = operatorController->RightTrigger();
     auto hopperButton = operatorController->B() || driver->B();
     auto reverseKicker = operatorController->X();
@@ -68,10 +103,17 @@ void DriverCommands(
     operatorController->POVDown().OnTrue(frc2::cmd::RunOnce(
         [=] { shooter->adjustFlywheelTrim(-kFlywheelTrimStepRpm); }));
 
-    // Driver sticks always control translation and rotation.
-    drive->SetDefaultCommand(frc2::cmd::Run(
+    // Keep the controller alive for the lifetime of the default command.
+    auto aimPid = std::make_shared<frc::PIDController>(kHubAimP, kHubAimI, kHubAimD);
+    aimPid->EnableContinuousInput(-std::numbers::pi, std::numbers::pi);
+
+    drive->SetDefaultCommand(frc2::cmd::RunEnd(
         [=] {
-            DriveWithJoystick(drive, driver);
+            DriveWithJoystick(drive, driver, shooter, *aimPid, aimTrigger.Get());
+        },
+        [=] {
+            aimPid->Reset();
+            drive->Stop();
         },
         {drive}));
 
