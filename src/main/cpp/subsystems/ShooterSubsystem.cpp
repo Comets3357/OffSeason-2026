@@ -57,7 +57,29 @@ void ShooterSubsystem::Periodic() {
     frc::SmartDashboard::PutNumber("Secondary Flywheel RPM", secondaryFlywheelMotor.getVelocity().value());
     frc::SmartDashboard::PutNumber("Third Flywheel RPM", thirdFlywheelMotor.getVelocity().value());
 
-    const auto distance = m_drive.GetEstimatedPose().Translation().Distance(getTargetPose().Translation());
+    const auto robotPose = m_drive.GetEstimatedPose();
+    const auto hubPose = getTargetPose();
+    const auto distance = robotPose.Translation().Distance(hubPose.Translation());
+
+    // The shooter faces backward: aim the robot's front away from the hub.
+    const double dx = (robotPose.X() - hubPose.X()).value();
+    const double dy = (robotPose.Y() - hubPose.Y()).value();
+    const bool aimValid = std::isfinite(dx) && std::isfinite(dy) &&
+        std::isfinite(robotPose.Rotation().Radians().value()) &&
+        std::hypot(dx, dy) > 0.1;
+    frc::SmartDashboard::PutBoolean("Shooter/Aim Valid", aimValid);
+
+    double targetHeadingDegrees = 0.0;
+    double headingErrorDegrees = 0.0;
+    if (aimValid) {
+        const frc::Rotation2d targetHeading{units::radian_t{std::atan2(dy, dx)}};
+        targetHeadingDegrees = targetHeading.Degrees().value();
+        // Wrapped error: positive means turn counterclockwise, negative clockwise.
+        headingErrorDegrees = (targetHeading - robotPose.Rotation()).Degrees().value();
+    }
+    frc::SmartDashboard::PutNumber("Shooter/Target Heading (deg)", targetHeadingDegrees);
+    frc::SmartDashboard::PutNumber("Shooter/Aim Error (deg)", headingErrorDegrees);
+
     const auto shot = calculateShot(distance);
     frc::SmartDashboard::PutNumber("Lookup Distance (meters)", distance.value());
     frc::SmartDashboard::PutNumber("Lookup Hood Position (motor turns)", shot.hoodMotorTurns.value());
